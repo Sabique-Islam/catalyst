@@ -10,8 +10,11 @@ dependencies:
     windows:
         - msys2
         - sqlite3
+        - ncurses
 flags:
     - -lsqlite3
+    - -lncurses
 includes:
     - stdio.h
     - sqlite3.h
+    - ncurses.h

@@ -39,6 +39,8 @@ catalyst build
 
 **Supported MSYS2 Packages**: `sqlite3`, `curl`, `jansson`, `ncurses`, `openssl`, and other development libraries
 
+**Windows Compatibility Warnings**: Catalyst automatically detects packages with known Windows compatibility issues (like `ncurses`, `X11`, `GTK`, `ALSA`) and provides helpful warnings with alternative suggestions. This helps you avoid spending time on libraries that won't work properly on Windows.
+
 **Note**: Compiled binaries need MSYS2 DLLs in PATH to run. Add `C:\msys64\ucrt64\bin` to your PATH or use the provided run scripts.
 
 ### Installing Dependencies and External Resources
@@ -279,3 +281,34 @@ Or create a wrapper script (e.g., `run.bat`):
 set PATH=C:\msys64\ucrt64\bin;%PATH%
 build\your-program.exe %*
 ```
+
+### Windows Compatibility Warnings
+
+Catalyst includes an intelligent compatibility detection system that warns you about packages with known Windows issues:
+
+**Automatically Detected Issues**:
+- **ncurses**: Limited Windows support, suggests PDCurses or WSL
+- **X11**: Not available on Windows, suggests Win32 API, SDL2, GLFW, or Qt
+- **GTK**: Limited Windows support, suggests Qt or wxWidgets
+- **ALSA/PulseAudio**: Linux-specific audio, suggests PortAudio or Windows Audio APIs
+
+**How It Works**:
+When you try to install a problematic package on Windows, Catalyst displays:
+```
+⚠️  WARNING: Windows Compatibility Issue Detected
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Package: ncurses
+Issue: ncurses has limited Windows support. The MSYS2 port 
+       has incomplete symbol exports and may cause linking errors.
+
+💡 Suggestion:
+   PDCurses (Public Domain Curses) - a Windows-compatible 
+   curses implementation
+
+📖 More Info:
+   Consider using PDCurses or running your application in 
+   WSL (Windows Subsystem for Linux) for full ncurses support.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+This **doesn't prevent** the installation but provides valuable guidance to help you make informed decisions about cross-platform compatibility.

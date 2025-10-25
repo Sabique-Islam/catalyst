@@ -101,6 +101,9 @@ func Install(dependencies []string) error {
 			for _, dep := range dependencies {
 				winPkg := mapToWindowsPackage(dep, "winget")
 				
+				// Check for Windows compatibility issues
+				checkWindowsPackageCompatibility(dep)
+				
 				// Check if this is a package that should be installed via MSYS2 pacman
 				if shouldUseMSYS2Pacman(dep) {
 					msys2Packages = append(msys2Packages, dep)
@@ -389,6 +392,9 @@ func installPackage(pkg string) error {
 		winPkg := mapToWindowsPackage(pkg, "choco")
 		cmd = exec.Command("choco", "install", winPkg, "-y")
 	case "winget":
+		// Check for Windows compatibility issues before installation
+		checkWindowsPackageCompatibility(pkg)
+		
 		// Windows Package Manager - check if package should use MSYS2 pacman instead
 		if shouldUseMSYS2Pacman(pkg) {
 			if isMSYS2Installed() {
@@ -602,6 +608,86 @@ func isSimpleLibrary(pkg string) bool {
 		}
 	}
 	return false
+}
+
+// WindowsPackageIssue represents known issues with packages on Windows
+type WindowsPackageIssue struct {
+	PackageName  string
+	Issue        string
+	Alternative  string
+	WorkaroundURL string
+}
+
+// getWindowsPackageIssues returns a map of packages with known Windows compatibility issues
+func getWindowsPackageIssues() map[string]WindowsPackageIssue {
+	return map[string]WindowsPackageIssue{
+		"ncurses": {
+			PackageName:  "ncurses",
+			Issue:        "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+			Alternative:  "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+			WorkaroundURL: "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support.",
+		},
+		"libncurses-dev": {
+			PackageName:  "ncurses",
+			Issue:        "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+			Alternative:  "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+			WorkaroundURL: "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support.",
+		},
+		"x11": {
+			PackageName:  "X11",
+			Issue:        "X11 (X Window System) is not available on Windows natively.",
+			Alternative:  "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+			WorkaroundURL: "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt.",
+		},
+		"libx11-dev": {
+			PackageName:  "X11",
+			Issue:        "X11 (X Window System) is not available on Windows natively.",
+			Alternative:  "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+			WorkaroundURL: "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt.",
+		},
+		"gtk": {
+			PackageName:  "GTK",
+			Issue:        "GTK has limited Windows support and requires significant setup.",
+			Alternative:  "Win32 API, Qt, or wxWidgets for better Windows integration",
+			WorkaroundURL: "Consider using cross-platform frameworks like Qt or Electron for consistent GUI across platforms.",
+		},
+		"pulseaudio": {
+			PackageName:  "PulseAudio",
+			Issue:        "PulseAudio is not natively supported on Windows.",
+			Alternative:  "PortAudio or Windows Audio Session API (WASAPI)",
+			WorkaroundURL: "Use PortAudio for cross-platform audio support.",
+		},
+		"alsa": {
+			PackageName:  "ALSA",
+			Issue:        "ALSA (Advanced Linux Sound Architecture) is Linux-specific.",
+			Alternative:  "PortAudio or Windows Audio APIs (WASAPI, DirectSound)",
+			WorkaroundURL: "Use PortAudio library for cross-platform audio handling.",
+		},
+	}
+}
+
+// checkWindowsPackageCompatibility checks if a package has known Windows issues and warns the user
+func checkWindowsPackageCompatibility(pkg string) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	
+	issues := getWindowsPackageIssues()
+	pkgLower := strings.ToLower(pkg)
+	
+	if issue, exists := issues[pkgLower]; exists {
+		fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		fmt.Printf("Package: %s\n", issue.PackageName)
+		fmt.Printf("Issue: %s\n\n", issue.Issue)
+		fmt.Printf("💡 Suggestion:\n")
+		fmt.Printf("   %s\n\n", issue.Alternative)
+		if issue.WorkaroundURL != "" {
+			fmt.Printf("📖 More Info:\n")
+			fmt.Printf("   %s\n", issue.WorkaroundURL)
+		}
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+	}
 }
 
 // shouldUseMSYS2Pacman checks if a package should be installed via MSYS2 pacman instead of winget
