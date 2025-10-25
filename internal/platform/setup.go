@@ -115,7 +115,7 @@ func setupChoco() error {
 // GetPackageManagerSetupAdvice returns setup advice for the current platform
 func GetPackageManagerSetupAdvice() string {
 	osName := runtime.GOOS
-	
+
 	switch osName {
 	case "linux":
 		return `

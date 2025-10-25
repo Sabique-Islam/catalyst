@@ -95,23 +95,23 @@ func getDependencyForOS(abstractName, pkgManager string) string {
 // resolveDependenciesForOS resolves dependencies for a specific OS with optional interactivity
 func resolveDependenciesForOS(dependencies []string, pkgManager string, interactive bool) []string {
 	fmt.Printf("\n--- Resolving dependencies for %s ---\n", pkgManager)
-	
+
 	results := pkgdb.BatchSearch(dependencies, pkgManager, interactive)
-	
+
 	var packages []string
 	for _, pkg := range results {
 		if pkg != "" { // Skip empty packages (standard library)
 			packages = append(packages, pkg)
 		}
 	}
-	
+
 	return packages
 }
 
 // resolveDependenciesAutoForOS resolves dependencies automatically without user interaction
 func resolveDependenciesAutoForOS(dependencies []string, pkgManager string) []string {
 	var packages []string
-	
+
 	for _, dep := range dependencies {
 		// Try static first
 		if pkg, found := pkgdb.Translate(dep, pkgManager); found {
@@ -120,13 +120,13 @@ func resolveDependenciesAutoForOS(dependencies []string, pkgManager string) []st
 			}
 			continue
 		}
-		
+
 		// Try dynamic search
 		if pkg, found := pkgdb.TranslateWithSearch(dep, pkgManager); found {
 			packages = append(packages, pkg)
 		}
 	}
-	
+
 	return packages
 }
 
@@ -200,7 +200,7 @@ func InitializeProject() error {
 		if err := platform.SetupPackageManager(pkgManager); err != nil {
 			fmt.Printf("Warning: %v\n", err)
 		}
-		
+
 		fmt.Println()
 
 		// Translate abstract dependencies to real package names
@@ -225,7 +225,7 @@ func InitializeProject() error {
 		if resolutionMethod == "interactive" {
 			// Interactive mode - let user choose for each OS
 			allOsDeps["darwin"] = resolveDependenciesForOS(abstractDeps, "brew", true)
-			allOsDeps["linux"] = resolveDependenciesForOS(abstractDeps, "apt", true)  
+			allOsDeps["linux"] = resolveDependenciesForOS(abstractDeps, "apt", true)
 			allOsDeps["windows"] = resolveDependenciesForOS(abstractDeps, "vcpkg", true)
 		} else if resolutionMethod == "database" {
 			// Database only mode

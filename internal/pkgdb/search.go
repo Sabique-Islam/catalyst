@@ -140,20 +140,20 @@ func searchChoco(headerName string) ([]SearchResult, error) {
 // parseAptFileOutput parses apt-file output to find package names
 func parseAptFileOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// apt-file output format: package: /path/to/file
 		parts := strings.SplitN(line, ":", 2)
 		if len(parts) == 2 {
 			pkgName := strings.TrimSpace(parts[0])
 			filePath := strings.TrimSpace(parts[1])
-			
+
 			// Calculate confidence based on file path match
 			confidence := calculatePathConfidence(filePath, headerName)
 			if confidence > 0 {
@@ -165,21 +165,21 @@ func parseAptFileOutput(output, headerName string) []SearchResult {
 			}
 		}
 	}
-	
+
 	return results
 }
 
 // parseAptSearchOutput parses apt search output
 func parseAptSearchOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "WARNING") {
 			continue
 		}
-		
+
 		// apt search output format: package/suite [arch] version
 		parts := strings.Fields(line)
 		if len(parts) > 0 {
@@ -194,21 +194,21 @@ func parseAptSearchOutput(output, headerName string) []SearchResult {
 			}
 		}
 	}
-	
+
 	return results
 }
 
 // parseDnfOutput parses dnf search output
 func parseDnfOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.Contains(line, "===") {
 			continue
 		}
-		
+
 		// dnf search output format: package.arch : description
 		if strings.Contains(line, " : ") {
 			parts := strings.SplitN(line, " : ", 2)
@@ -225,21 +225,21 @@ func parseDnfOutput(output, headerName string) []SearchResult {
 			}
 		}
 	}
-	
+
 	return results
 }
 
 // parsePacmanOutput parses pacman search output
 func parsePacmanOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// pacman output format: repo/package version
 		parts := strings.Fields(line)
 		if len(parts) > 0 {
@@ -257,21 +257,21 @@ func parsePacmanOutput(output, headerName string) []SearchResult {
 			}
 		}
 	}
-	
+
 	return results
 }
 
 // parseBrewOutput parses brew search output
 func parseBrewOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		confidence := calculateNameConfidence(line, headerName)
 		if confidence > 20 {
 			results = append(results, SearchResult{
@@ -281,21 +281,21 @@ func parseBrewOutput(output, headerName string) []SearchResult {
 			})
 		}
 	}
-	
+
 	return results
 }
 
 // parseVcpkgOutput parses vcpkg search output
 func parseVcpkgOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.Fields(line)
 		if len(parts) > 0 {
 			confidence := calculateNameConfidence(parts[0], headerName)
@@ -308,21 +308,21 @@ func parseVcpkgOutput(output, headerName string) []SearchResult {
 			}
 		}
 	}
-	
+
 	return results
 }
 
 // parseChocoOutput parses chocolatey search output
 func parseChocoOutput(output, headerName string) []SearchResult {
 	var results []SearchResult
-	
+
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.Fields(line)
 		if len(parts) > 0 {
 			confidence := calculateNameConfidence(parts[0], headerName)
@@ -335,7 +335,7 @@ func parseChocoOutput(output, headerName string) []SearchResult {
 			}
 		}
 	}
-	
+
 	return results
 }
 
@@ -343,22 +343,22 @@ func parseChocoOutput(output, headerName string) []SearchResult {
 func calculateNameConfidence(pkgName, headerName string) int {
 	pkgLower := strings.ToLower(pkgName)
 	headerLower := strings.ToLower(headerName)
-	
+
 	// Exact match
 	if pkgLower == headerLower {
 		return 100
 	}
-	
+
 	// Contains header name
 	if strings.Contains(pkgLower, headerLower) {
 		return 80
 	}
-	
+
 	// Header name contains package name
 	if strings.Contains(headerLower, pkgLower) {
 		return 70
 	}
-	
+
 	// Common library naming patterns
 	patterns := []string{
 		"lib" + headerLower,
@@ -367,7 +367,7 @@ func calculateNameConfidence(pkgName, headerName string) int {
 		"lib" + headerLower + "-dev",
 		"lib" + headerLower + "-devel",
 	}
-	
+
 	for _, pattern := range patterns {
 		if pkgLower == pattern {
 			return 90
@@ -376,27 +376,27 @@ func calculateNameConfidence(pkgName, headerName string) int {
 			return 60
 		}
 	}
-	
+
 	// Fuzzy matching (simple edit distance approximation)
 	if len(pkgLower) > 0 && len(headerLower) > 0 {
 		minLen := len(pkgLower)
 		if len(headerLower) < minLen {
 			minLen = len(headerLower)
 		}
-		
+
 		matches := 0
 		for i := 0; i < minLen; i++ {
 			if pkgLower[i] == headerLower[i] {
 				matches++
 			}
 		}
-		
+
 		similarity := (matches * 100) / minLen
 		if similarity > 60 {
 			return similarity / 2 // Reduce confidence for fuzzy matches
 		}
 	}
-	
+
 	return 0
 }
 
@@ -404,20 +404,20 @@ func calculateNameConfidence(pkgName, headerName string) int {
 func calculatePathConfidence(filePath, headerName string) int {
 	pathLower := strings.ToLower(filePath)
 	headerLower := strings.ToLower(headerName)
-	
+
 	// Check if the file is actually a header file
 	if !strings.HasSuffix(pathLower, ".h") && !strings.HasSuffix(pathLower, ".hpp") {
 		return 0
 	}
-	
+
 	// Extract filename from path
 	fileName := strings.ToLower(filepath.Base(filePath))
-	
+
 	// Exact match
 	if fileName == headerLower+".h" || fileName == headerLower+".hpp" {
 		return 95
 	}
-	
+
 	// Check if it's in a reasonable include path
 	includePatterns := []string{"/usr/include/", "/usr/local/include/", "/opt/include/"}
 	for _, pattern := range includePatterns {
@@ -427,19 +427,19 @@ func calculatePathConfidence(filePath, headerName string) int {
 			}
 		}
 	}
-	
+
 	// General path contains header name
 	if strings.Contains(fileName, headerLower) {
 		return 60
 	}
-	
+
 	return 0
 }
 
 // deduplicateResults removes duplicate search results and sorts by confidence
 func deduplicateResults(results []SearchResult) []SearchResult {
 	seen := make(map[string]SearchResult)
-	
+
 	// Keep the result with highest confidence for each package
 	for _, result := range results {
 		existing, exists := seen[result.PackageName]
@@ -447,13 +447,13 @@ func deduplicateResults(results []SearchResult) []SearchResult {
 			seen[result.PackageName] = result
 		}
 	}
-	
+
 	// Convert back to slice and sort by confidence (highest first)
 	var deduplicated []SearchResult
 	for _, result := range seen {
 		deduplicated = append(deduplicated, result)
 	}
-	
+
 	// Simple sort by confidence (bubble sort for simplicity)
 	for i := 0; i < len(deduplicated)-1; i++ {
 		for j := 0; j < len(deduplicated)-i-1; j++ {
@@ -462,7 +462,7 @@ func deduplicateResults(results []SearchResult) []SearchResult {
 			}
 		}
 	}
-	
+
 	return deduplicated
 }
 
@@ -471,7 +471,7 @@ func GetBestMatch(results []SearchResult) (string, bool) {
 	if len(results) == 0 {
 		return "", false
 	}
-	
+
 	best := results[0]
 	return best.PackageName, best.Confidence >= 50 // Only return if confidence is reasonable
 }
