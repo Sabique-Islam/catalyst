@@ -742,13 +742,6 @@ func isSimpleLibrary(pkg string) bool {
 	return false
 }
 
-// WindowsPackageIssue represents known issues with packages on Windows
-type WindowsPackageIssue struct {
-	PackageName  string
-	Issue        string
-	Alternative  string
-	WorkaroundURL string
-}
 // NOTE: Package compatibility information is now loaded from the embedded
 // JSON file `windows_issues.json`. See loadWindowsIssuesDB() and
 // getWindowsPackageIssue() above for the loader and access helpers.
