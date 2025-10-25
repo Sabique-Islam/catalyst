@@ -79,6 +79,7 @@ func InitializeProject() error {
 		}
 
 		fmt.Printf("Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
+		fmt.Println()
 
 		// Translate abstract dependencies to real package names
 		realDeps := []string{}
@@ -89,13 +90,13 @@ func InitializeProject() error {
 
 			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
 			if !found {
-			} else {
 				fmt.Printf("Warning: No translation found for '%s' on %s\n", abstractName, pkgManager)
 				continue
 			}
 
 			// Skip empty package names (standard library headers)
 			if realPkgName == "" {
+				fmt.Printf("%s is a standard library header (no package needed)\n", abstractName)
 				continue
 			}
 
