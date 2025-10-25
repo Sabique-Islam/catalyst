@@ -10,7 +10,6 @@ import (
 	core "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/Sabique-Islam/catalyst/internal/fetch"
 	"github.com/Sabique-Islam/catalyst/internal/install"
-	"github.com/Sabique-Islam/catalyst/internal/pkgdb"
 	"github.com/Sabique-Islam/catalyst/internal/platform"
 	"github.com/Sabique-Islam/catalyst/internal/tui"
 	"gopkg.in/yaml.v3"
@@ -91,7 +90,6 @@ func scanSourceFiles(dir string) ([]string, error) {
 func filterSourceFiles(allSources []string) []string {
 	var mainSources []string
 	var srcDirSources []string
-	var otherSources []string
 
 	for _, src := range allSources {
 		// Categorize source files
@@ -100,10 +98,8 @@ func filterSourceFiles(allSources []string) []string {
 		} else if !strings.Contains(src, "/") || strings.Count(src, "/") == 0 {
 			// Files in root directory
 			mainSources = append(mainSources, src)
-		} else {
-			// Files in subdirectories (like arc-server/, examples/, etc.)
-			otherSources = append(otherSources, src)
 		}
+		// Note: otherSources (subdirectories) are intentionally ignored for filtering
 	}
 
 	// Strategy: Include root level C files and src/ directory files
@@ -123,60 +119,6 @@ func filterSourceFiles(allSources []string) []string {
 
 	fmt.Printf("Filtered %d source files from %d total: %v\n", len(result), len(allSources), result)
 	return result
-}
-
-// getDependencyForOS gets the dependency package name for a specific OS/package manager
-// It tries static translation first, then falls back to dynamic search
-func getDependencyForOS(abstractName, pkgManager string) string {
-	// First try static translation
-	if pkg, found := pkgdb.Translate(abstractName, pkgManager); found {
-		return pkg
-	}
-
-	// If not found, try dynamic search
-	if pkg, found := pkgdb.TranslateWithSearch(abstractName, pkgManager); found {
-		return pkg
-	}
-
-	return ""
-}
-
-// resolveDependenciesForOS resolves dependencies for a specific OS with optional interactivity
-func resolveDependenciesForOS(dependencies []string, pkgManager string, interactive bool) []string {
-	fmt.Printf("\n--- Resolving dependencies for %s ---\n", pkgManager)
-
-	results := pkgdb.BatchSearch(dependencies, pkgManager, interactive)
-
-	var packages []string
-	for _, pkg := range results {
-		if pkg != "" { // Skip empty packages (standard library)
-			packages = append(packages, pkg)
-		}
-	}
-
-	return packages
-}
-
-// resolveDependenciesAutoForOS resolves dependencies automatically without user interaction
-func resolveDependenciesAutoForOS(dependencies []string, pkgManager string) []string {
-	var packages []string
-
-	for _, dep := range dependencies {
-		// Try static first
-		if pkg, found := pkgdb.Translate(dep, pkgManager); found {
-			if pkg != "" { // Skip empty (standard library) packages
-				packages = append(packages, pkg)
-			}
-			continue
-		}
-
-		// Try dynamic search
-		if pkg, found := pkgdb.TranslateWithSearch(dep, pkgManager); found {
-			packages = append(packages, pkg)
-		}
-	}
-
-	return packages
 }
 
 // InitializeProject runs the interactive project initialization wizard
@@ -280,60 +222,15 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 			}
 		}
 
-		// Detect OS and package manager
-		osName := platform.DetectOS()
-		pkgManager, err := platform.DetectPackageManager(osName)
-		if err != nil {
-			fmt.Printf("Could not detect package manager: %v\n", err)
-			fmt.Printf("Setup advice:\n%s\n", platform.GetPackageManagerSetupAdvice())
-			return fmt.Errorf("package manager not available")
-		}
+		// Use simple hardcoded dependencies for all platforms
+		fmt.Println("Setting up dependencies for all platforms...")
 
-		fmt.Printf("Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
-
-		// Setup and verify package manager tools
-		if err := platform.SetupPackageManager(pkgManager); err != nil {
-			fmt.Printf("Warning: %v\n", err)
-		}
-
-		fmt.Println()
-
-		// Translate abstract dependencies to real package names
-		// Collect dependencies per OS
-		// Initialize with all major platforms
 		allOsDeps := map[string][]string{
-			"darwin":  {},
-			"linux":   {},
-			"windows": {},
+			"darwin":  {"ncurses", "jansson", "sqlite3", "curl"},
+			"linux":   {"ncurses", "jansson", "sqlite3", "curl"},
+			"windows": {"ncurses", "jansson", "sqlite3", "curl"},
 		}
 		includes := []string{}
-
-		// Extract resolution preference from config (temporary storage in Author field)
-		resolutionMethod := config.Author
-		if resolutionMethod == "" {
-			resolutionMethod = "auto" // Default to automatic
-		}
-
-		fmt.Printf("Using %s dependency resolution...\n\n", resolutionMethod)
-
-		// Resolve dependencies based on preference
-		if resolutionMethod == "interactive" {
-			// Interactive mode - let user choose for each OS
-			allOsDeps["darwin"] = resolveDependenciesForOS(abstractDeps, "brew", true)
-			allOsDeps["linux"] = resolveDependenciesForOS(abstractDeps, "apt", true)
-			allOsDeps["windows"] = resolveDependenciesForOS(abstractDeps, "vcpkg", true)
-		} else if resolutionMethod == "database" {
-			// Database only mode
-			allOsDeps["darwin"] = resolveDependenciesForOS(abstractDeps, "brew", false)
-			allOsDeps["linux"] = resolveDependenciesForOS(abstractDeps, "apt", false)
-			allOsDeps["windows"] = resolveDependenciesForOS(abstractDeps, "vcpkg", false)
-		} else {
-			// Auto mode - use enhanced resolution without interaction
-			fmt.Println("Automatically resolving dependencies for all platforms...")
-			allOsDeps["darwin"] = resolveDependenciesAutoForOS(abstractDeps, "brew")
-			allOsDeps["linux"] = resolveDependenciesAutoForOS(abstractDeps, "apt")
-			allOsDeps["windows"] = resolveDependenciesAutoForOS(abstractDeps, "vcpkg")
-		}
 
 		// Build includes list
 		for _, abstractName := range abstractDeps {
@@ -346,33 +243,8 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 			}
 		}
 
-		// Check what's already installed on current system (for info only)
-		fmt.Println("\nChecking current system installation status...")
-		for _, abstractName := range abstractDeps {
-			if realPkgName, found := pkgdb.Translate(abstractName, pkgManager); found && realPkgName != "" {
-				if platform.IsPackageInstalled(realPkgName, pkgManager) {
-					fmt.Printf("✓ %s (%s) is already installed\n", abstractName, realPkgName)
-				} else {
-					fmt.Printf("✗ %s (%s) needs to be installed\n", abstractName, realPkgName)
-				}
-			}
-		}
-
 		// Clear the temporary resolution preference from Author field
 		config.Author = ""
-
-		// Remove duplicates from each OS dependency list
-		for os, deps := range allOsDeps {
-			uniqueDeps := make(map[string]bool)
-			uniqueList := []string{}
-			for _, dep := range deps {
-				if !uniqueDeps[dep] {
-					uniqueDeps[dep] = true
-					uniqueList = append(uniqueList, dep)
-				}
-			}
-			allOsDeps[os] = uniqueList
-		}
 
 		// Populate config with dependencies for all OSes
 		// allOsDeps is always initialized with all platforms
@@ -386,6 +258,7 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 		// Install dependencies if requested
 		if installDeps {
 			fmt.Println("\nInstalling dependencies...")
+			osName := platform.DetectOS()
 			currentOsDeps := allOsDeps[osName]
 			if len(currentOsDeps) > 0 {
 				installer, err := install.NewDependencyInstaller(false, true)
