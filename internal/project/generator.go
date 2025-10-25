@@ -146,13 +146,14 @@ func InitializeProject() error {
 		includes := []string{}
 
 		for _, abstractName := range abstractDeps {
-			includes = append(includes, abstractName+".h")
-
 			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
 			if !found {
-				fmt.Printf("Warning: No translation found for '%s' on %s\n", abstractName, pkgManager)
+				// Not in package database - likely a project-local header, skip it
 				continue
 			}
+
+			// Add to includes list (this is a real system header)
+			includes = append(includes, abstractName+".h")
 
 			// Skip empty package names (standard library headers)
 			if realPkgName == "" {
