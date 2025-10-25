@@ -91,12 +91,38 @@ func Install(dependencies []string) error {
 			err = runCommand("choco", args...)
 		case "winget":
 			fmt.Printf("Using package manager: %s\n", pkgMgr)
+			fmt.Println()
+			var lastErr error
+			successCount := 0
 			for _, dep := range dependencies {
 				winPkg := mapToWindowsPackage(dep, "winget")
-				err = runCommand("winget", "install", "--id", winPkg, "--accept-package-agreements", "--accept-source-agreements")
+				fmt.Printf("Installing %s (package: %s)...\n", dep, winPkg)
+				err = runWingetInstall(winPkg)
 				if err != nil {
-					break
+					// For winget, check if it's an "already installed" or "no applicable installer" error
+					if isWingetNonCriticalError(err) {
+						fmt.Printf("  → Skipped: Package may already be installed or installation was interrupted\n")
+						if winPkg == "MSYS2.MSYS2" {
+							fmt.Printf("     If MSYS2 is not installed, please install it manually from: https://www.msys2.org/\n")
+							fmt.Printf("     After installing MSYS2, install required packages with:\n")
+							fmt.Printf("     pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-curl mingw-w64-x86_64-jansson\n")
+						}
+						fmt.Println()
+						continue // Continue with other packages
+					}
+					fmt.Printf("  → Failed to install %s\n\n", dep)
+					lastErr = err
+					// Continue trying other packages instead of stopping
+					continue
 				}
+				fmt.Printf("  → Successfully installed %s\n\n", dep)
+				successCount++
+			}
+			// Only return error if all packages failed and none were skipped
+			if successCount == 0 && lastErr != nil {
+				err = lastErr
+			} else {
+				err = nil
 			}
 		case "scoop":
 			args = append([]string{"install"}, dependencies...)
@@ -319,9 +345,18 @@ func installPackage(pkg string) error {
 		winPkg := mapToWindowsPackage(pkg, "choco")
 		cmd = exec.Command("choco", "install", winPkg, "-y")
 	case "winget":
-		// Windows Package Manager
+		// Windows Package Manager - use improved error handling
 		winPkg := mapToWindowsPackage(pkg, "winget")
-		cmd = exec.Command("winget", "install", "--id", winPkg, "--accept-package-agreements", "--accept-source-agreements")
+		fmt.Printf("Installing %s with %s...\n", pkg, pkgManager)
+		err := runWingetInstall(winPkg)
+		if err != nil {
+			if isWingetNonCriticalError(err) {
+				fmt.Printf("  Note: %s may already be installed or unavailable via winget\n", winPkg)
+				return nil // Treat as success
+			}
+			return fmt.Errorf("failed installing %s with winget: %w", pkg, err)
+		}
+		return nil
 	case "scoop":
 		// Scoop for Windows
 		winPkg := mapToWindowsPackage(pkg, "scoop")
@@ -394,6 +429,7 @@ func mapToWindowsPackage(pkg string, pkgManager string) string {
 			"gcc":                  "MSYS2.MSYS2",
 			"make":                 "GnuWin32.Make",
 			"build-essential":      "MSYS2.MSYS2",
+			"msys2":                "MSYS2.MSYS2",
 			"curl":                 "cURL.cURL",
 			"libcurl4-openssl-dev": "cURL.cURL",
 			"git":                  "Git.Git",
@@ -518,6 +554,58 @@ func runCommand(command string, args ...string) error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	return cmd.Run()
+}
+
+// runWingetInstall runs winget install with better error handling
+func runWingetInstall(packageID string) error {
+	cmd := exec.Command("winget", "install", "--id", packageID, "--accept-package-agreements", "--accept-source-agreements")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	err := cmd.Run()
+	
+	if err != nil {
+		// Check for specific winget exit codes
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode := exitErr.ExitCode()
+			// Common winget exit codes (hex values):
+			// 0x8a15000f: Package already installed
+			// 0x8a150014: No applicable installer  
+			// 0x8a150011: Package install already in progress
+			// 0x8a150006: Installer error (may need manual install or already installed)
+			// 0x8a150005: Installer download error
+			// Treat these as non-critical - continue installation
+			nonCriticalCodesHex := []uint32{0x8a15000f, 0x8a150014, 0x8a150011, 0x8a150006, 0x8a150005}
+			for _, code := range nonCriticalCodesHex {
+				if uint32(exitCode) == code {
+					return &wingetNonCriticalError{
+						exitCode:  exitCode,
+						output:    "",
+						packageID: packageID,
+					}
+				}
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+// wingetNonCriticalError represents non-critical winget errors (already installed, etc.)
+type wingetNonCriticalError struct {
+	exitCode  int
+	output    string
+	packageID string
+}
+
+func (e *wingetNonCriticalError) Error() string {
+	return fmt.Sprintf("winget non-critical error (exit code: %d, package: %s)", e.exitCode, e.packageID)
+}
+
+// isWingetNonCriticalError checks if an error is a non-critical winget error
+func isWingetNonCriticalError(err error) bool {
+	_, ok := err.(*wingetNonCriticalError)
+	return ok
 }
 
 // DownloadResource downloads a file from a URL to a local path
