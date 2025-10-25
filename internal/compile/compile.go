@@ -36,8 +36,8 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 	}
 
 	// Build command arguments
-	args := append(flags, "-o", output)
-	args = append(args, sourceFiles...)
+	args := append([]string{"-o", output}, sourceFiles...)
+	args = append(args, flags...)
 
 	cmd := exec.Command(compiler, args...)
 	cmd.Stdout = os.Stdout

@@ -94,18 +94,37 @@ func Install(dependencies []string) error {
 			fmt.Println()
 			var lastErr error
 			successCount := 0
+			hasMSYS2 := false
+			msys2Packages := []string{}
+			
+			// First pass: install base packages via winget, collect MSYS2 packages
 			for _, dep := range dependencies {
 				winPkg := mapToWindowsPackage(dep, "winget")
-				fmt.Printf("Installing %s (package: %s)...\n", dep, winPkg)
+				
+				// Check if this is a package that should be installed via MSYS2 pacman
+				if shouldUseMSYS2Pacman(dep) {
+					msys2Packages = append(msys2Packages, dep)
+					continue
+				}
+				
+				fmt.Printf("Installing %s", dep)
+				if winPkg != dep {
+					fmt.Printf(" (package: %s)", winPkg)
+				}
+				fmt.Println("...")
+				
+				if winPkg == "MSYS2.MSYS2" {
+					hasMSYS2 = true
+				}
+				
 				err = runWingetInstall(winPkg)
 				if err != nil {
 					// For winget, check if it's an "already installed" or "no applicable installer" error
 					if isWingetNonCriticalError(err) {
 						fmt.Printf("  → Skipped: Package may already be installed or installation was interrupted\n")
 						if winPkg == "MSYS2.MSYS2" {
-							fmt.Printf("     If MSYS2 is not installed, please install it manually from: https://www.msys2.org/\n")
-							fmt.Printf("     After installing MSYS2, install required packages with:\n")
-							fmt.Printf("     pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-curl mingw-w64-x86_64-jansson\n")
+							hasMSYS2 = true // Still mark as available for pacman use
+							fmt.Printf("     MSYS2 appears to be already installed\n")
 						}
 						fmt.Println()
 						continue // Continue with other packages
@@ -118,6 +137,31 @@ func Install(dependencies []string) error {
 				fmt.Printf("  → Successfully installed %s\n\n", dep)
 				successCount++
 			}
+			
+			// Second pass: install development libraries via MSYS2 pacman if available
+			if len(msys2Packages) > 0 {
+				if hasMSYS2 || isMSYS2Installed() {
+					fmt.Printf("\nInstalling development libraries via MSYS2 pacman: %v\n", msys2Packages)
+					if err := installViaMSYS2Pacman(msys2Packages); err != nil {
+						fmt.Printf("Warning: Failed to install some packages via MSYS2: %v\n", err)
+						fmt.Printf("You may need to manually install these packages:\n")
+						for _, pkg := range msys2Packages {
+							msys2Pkg := mapToMSYS2Package(pkg)
+							fmt.Printf("  pacman -S %s\n", msys2Pkg)
+						}
+					} else {
+						successCount += len(msys2Packages)
+					}
+				} else {
+					fmt.Printf("\nWarning: The following packages require MSYS2 but it's not installed: %v\n", msys2Packages)
+					fmt.Printf("Please install MSYS2 from https://www.msys2.org/ and then run:\n")
+					for _, pkg := range msys2Packages {
+						msys2Pkg := mapToMSYS2Package(pkg)
+						fmt.Printf("  pacman -S %s\n", msys2Pkg)
+					}
+				}
+			}
+			
 			// Only return error if all packages failed and none were skipped
 			if successCount == 0 && lastErr != nil {
 				err = lastErr
@@ -345,7 +389,19 @@ func installPackage(pkg string) error {
 		winPkg := mapToWindowsPackage(pkg, "choco")
 		cmd = exec.Command("choco", "install", winPkg, "-y")
 	case "winget":
-		// Windows Package Manager - use improved error handling
+		// Windows Package Manager - check if package should use MSYS2 pacman instead
+		if shouldUseMSYS2Pacman(pkg) {
+			if isMSYS2Installed() {
+				fmt.Printf("Installing %s via MSYS2 pacman...\n", pkg)
+				return installViaMSYS2Pacman([]string{pkg})
+			} else {
+				fmt.Printf("Warning: %s requires MSYS2 but it's not installed\n", pkg)
+				fmt.Printf("Please install MSYS2 from https://www.msys2.org/ and run: pacman -S %s\n", mapToMSYS2Package(pkg))
+				return nil // Don't fail, just warn
+			}
+		}
+		
+		// For winget packages
 		winPkg := mapToWindowsPackage(pkg, "winget")
 		fmt.Printf("Installing %s with %s...\n", pkg, pkgManager)
 		err := runWingetInstall(winPkg)
@@ -548,6 +604,113 @@ func isSimpleLibrary(pkg string) bool {
 	return false
 }
 
+// shouldUseMSYS2Pacman checks if a package should be installed via MSYS2 pacman instead of winget
+func shouldUseMSYS2Pacman(pkg string) bool {
+	// Packages that are development libraries and not available via winget
+	msys2OnlyPackages := []string{
+		"curl",
+		"jansson",
+		"sqlite3",
+		"libjansson-dev",
+		"libcurl4-openssl-dev",
+		"libssl-dev",
+		"libsqlite3-dev",
+		"ncurses",
+		"libncurses-dev",
+	}
+	
+	pkgLower := strings.ToLower(pkg)
+	for _, msys2Pkg := range msys2OnlyPackages {
+		if pkgLower == msys2Pkg {
+			return true
+		}
+	}
+	return false
+}
+
+// isMSYS2Installed checks if MSYS2 is installed on the system
+func isMSYS2Installed() bool {
+	// Check common MSYS2 installation paths
+	commonPaths := []string{
+		"C:\\msys64\\usr\\bin\\bash.exe",
+		"C:\\msys32\\usr\\bin\\bash.exe",
+	}
+	
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// getMSYS2BashPath returns the path to MSYS2 bash executable
+func getMSYS2BashPath() (string, error) {
+	commonPaths := []string{
+		"C:\\msys64\\usr\\bin\\bash.exe",
+		"C:\\msys32\\usr\\bin\\bash.exe",
+	}
+	
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+	
+	return "", errors.New("MSYS2 bash not found in common locations")
+}
+
+// mapToMSYS2Package maps a generic package name to MSYS2 UCRT64 package name
+func mapToMSYS2Package(pkg string) string {
+	// Map to mingw-w64-ucrt-x86_64-* packages for UCRT64 environment
+	msys2Map := map[string]string{
+		"jansson":              "mingw-w64-ucrt-x86_64-jansson",
+		"libjansson-dev":       "mingw-w64-ucrt-x86_64-jansson",
+		"curl":                 "mingw-w64-ucrt-x86_64-curl",
+		"libcurl4-openssl-dev": "mingw-w64-ucrt-x86_64-curl",
+		"sqlite3":              "mingw-w64-ucrt-x86_64-sqlite3",
+		"libsqlite3-dev":       "mingw-w64-ucrt-x86_64-sqlite3",
+		"openssl":              "mingw-w64-ucrt-x86_64-openssl",
+		"libssl-dev":           "mingw-w64-ucrt-x86_64-openssl",
+		"ncurses":              "mingw-w64-ucrt-x86_64-ncurses",
+		"libncurses-dev":       "mingw-w64-ucrt-x86_64-ncurses",
+	}
+	
+	if msys2Pkg, exists := msys2Map[pkg]; exists {
+		return msys2Pkg
+	}
+	
+	// If not in map, try adding the prefix
+	return "mingw-w64-ucrt-x86_64-" + pkg
+}
+
+// installViaMSYS2Pacman installs packages using MSYS2's pacman
+func installViaMSYS2Pacman(packages []string) error {
+	bashPath, err := getMSYS2BashPath()
+	if err != nil {
+		return err
+	}
+	
+	// Map packages to MSYS2 names
+	msys2Packages := []string{}
+	for _, pkg := range packages {
+		msys2Packages = append(msys2Packages, mapToMSYS2Package(pkg))
+	}
+	
+	// Build pacman command
+	pacmanCmd := "pacman -S --noconfirm " + strings.Join(msys2Packages, " ")
+	
+	fmt.Printf("\nRunning MSYS2 pacman: %s\n", pacmanCmd)
+	
+	// Execute via bash -lc to get proper environment
+	cmd := exec.Command(bashPath, "-lc", pacmanCmd)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	return cmd.Run()
+}
+
 // runCommand executes a command with arguments
 func runCommand(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
@@ -574,8 +737,9 @@ func runWingetInstall(packageID string) error {
 			// 0x8a150011: Package install already in progress
 			// 0x8a150006: Installer error (may need manual install or already installed)
 			// 0x8a150005: Installer download error
+			// 0x8a15002b: No upgrade available (package already installed)
 			// Treat these as non-critical - continue installation
-			nonCriticalCodesHex := []uint32{0x8a15000f, 0x8a150014, 0x8a150011, 0x8a150006, 0x8a150005}
+			nonCriticalCodesHex := []uint32{0x8a15000f, 0x8a150014, 0x8a150011, 0x8a150006, 0x8a150005, 0x8a15002b}
 			for _, code := range nonCriticalCodesHex {
 				if uint32(exitCode) == code {
 					return &wingetNonCriticalError{
