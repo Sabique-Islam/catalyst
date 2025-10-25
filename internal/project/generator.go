@@ -226,6 +226,14 @@ func InitializeProject() error {
 		fmt.Println("Creating basic catalyst.yml template...")
 		fmt.Println("   You'll need to manually add dependencies and includes.")
 
+		// Initialize empty dependency structure for all major platforms
+		// This ensures the dependencies section appears in the YAML file
+		config.Dependencies = map[string][]string{
+			"darwin":  {},
+			"linux":   {},
+			"windows": {},
+		}
+
 		if err := saveConfig(config, "catalyst.yml"); err != nil {
 			return fmt.Errorf("failed to save configuration: %w", err)
 		}
