@@ -374,6 +374,68 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 			allOsDeps[os] = uniqueList
 		}
 
+		// Fallback: If dependency resolution yielded no results for major platforms, use hardcoded common dependencies
+		linuxEmpty := len(allOsDeps["linux"]) == 0
+		darwinEmpty := len(allOsDeps["darwin"]) == 0
+
+		if (linuxEmpty || darwinEmpty) && len(abstractDeps) > 0 {
+			fmt.Println("\nWarning: Dependency resolution yielded no results. Using fallback dependencies...")
+
+			// Hardcoded fallback dependencies for common C libraries
+			fallbackDeps := map[string][]string{
+				"darwin": {
+					"ncurses",
+					"jansson",
+					"sqlite3",
+					"curl",
+				},
+				"linux": {
+					"ncurses",
+					"jansson",
+					"sqlite3",
+					"curl",
+				},
+				"windows": {
+					"ncurses",
+					"jansson",
+					"sqlite3",
+					"curl",
+				},
+			}
+
+			// Filter fallback deps based on detected abstract dependencies
+			for os, fallbackList := range fallbackDeps {
+				var filteredDeps []string
+				for _, fallbackDep := range fallbackList {
+					// Check if any abstract dependency suggests we need this library
+					shouldInclude := false
+					for _, abstractDep := range abstractDeps {
+						if strings.Contains(strings.ToLower(abstractDep), "json") && fallbackDep == "jansson" {
+							shouldInclude = true
+						} else if strings.Contains(strings.ToLower(abstractDep), "sqlite") && fallbackDep == "sqlite3" {
+							shouldInclude = true
+						} else if (strings.Contains(strings.ToLower(abstractDep), "curl") ||
+							strings.Contains(strings.ToLower(abstractDep), "http")) && fallbackDep == "curl" {
+							shouldInclude = true
+						} else if fallbackDep == "ncurses" || fallbackDep == "sqlite3" {
+							// Always include ncurses for terminal applications and sqlite3 for data storage
+							shouldInclude = true
+						}
+					}
+					if shouldInclude {
+						filteredDeps = append(filteredDeps, fallbackDep)
+					}
+				} // If no smart matching, include all common deps
+				if len(filteredDeps) == 0 {
+					filteredDeps = fallbackList
+				}
+
+				allOsDeps[os] = filteredDeps
+			}
+
+			fmt.Printf("Applied fallback dependencies: %v\n", allOsDeps)
+		}
+
 		// Populate config with dependencies for all OSes
 		// allOsDeps is always initialized with all platforms
 		config.Dependencies = allOsDeps
