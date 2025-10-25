@@ -4,33 +4,47 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
-// Compile compiles the Go project into a binary in bin/
-func Compile() error {
-	fmt.Println("Compiling project...")
+// CompileC compiles a C/C++ source file or project into a binary
+func CompileC(sourceFiles []string, output string, flags []string) error {
+	if len(sourceFiles) == 0 {
+		return fmt.Errorf("no source files provided for compilation")
+	}
 
-	// Determine output binary path
-	binaryPath := "bin/project"
+	// Ensure output directory exists
+	outDir := filepath.Dir(output)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Determine compiler
+	compiler := "gcc" // default for C
 	if runtime.GOOS == "windows" {
-		binaryPath += ".exe"
+		if _, err := exec.LookPath("gcc"); err != nil {
+			return fmt.Errorf("gcc not found in PATH")
+		}
+	} else {
+		if _, err := exec.LookPath("gcc"); err != nil {
+			return fmt.Errorf("gcc not found, install it using your package manager")
+		}
 	}
 
-	// Ensure bin directory exists
-	if err := os.MkdirAll("bin", 0755); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
+	// Build command arguments
+	args := append(flags, "-o", output)
+	args = append(args, sourceFiles...)
 
-	// Run go build
-	cmd := exec.Command("go", "build", "-o", binaryPath)
+	cmd := exec.Command(compiler, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	fmt.Printf("Compiling with: %s %s\n", compiler, args)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("compilation failed: %w", err)
 	}
 
-	fmt.Printf("✅ Compilation complete: %s\n", binaryPath)
+	fmt.Printf("✅ Compilation successful: %s\n", output)
 	return nil
 }

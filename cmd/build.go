@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/Sabique-Islam/catalyst/internal/compile"
+	compile "github.com/Sabique-Islam/catalyst/internal/compile"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ var buildCmd = &cobra.Command{
 		}
 
 		// 2️⃣ Compile project
-		if err := build.Compile(); err != nil {
+		if err := compile.Compile(); err != nil {
 			return fmt.Errorf("compilation failed: %w", err)
 		}
 

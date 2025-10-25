@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/Sabique-Islam/catalyst/internal/install"
-	"github.com/Sabique-Islam/catalyst/internal/config"
+	install "github.com/Sabique-Islam/catalyst/internal/install"
+	config "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/spf13/cobra"
 )
 
