@@ -107,3 +107,26 @@ func TestInstallResources(t *testing.T) {
 		t.Logf("Successfully created resource: %s", resource.Path)
 	}
 }
+
+func TestDownloadResourceWindowsPaths(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Test with mixed path separators (Windows-style)
+	testPath := filepath.Join(tempDir, "windows\\mixed/path\\test.json")
+
+	// Test downloading with mixed separators
+	url := "https://httpbin.org/uuid"
+	err := DownloadResource(url, testPath)
+	if err != nil {
+		t.Fatalf("Failed to download resource with Windows path: %v", err)
+	}
+
+	// Check if file was created (path should be normalized)
+	normalizedPath := filepath.Clean(testPath)
+	if _, err := os.Stat(normalizedPath); os.IsNotExist(err) {
+		t.Fatalf("Downloaded file does not exist at normalized path: %s", normalizedPath)
+	}
+
+	t.Logf("Successfully downloaded file with Windows-style path: %s", normalizedPath)
+}

@@ -77,13 +77,37 @@ func Install(dependencies []string) error {
 		}
 
 	case "windows":
-		if _, err := exec.LookPath("choco"); err != nil {
-			return errors.New("chocolatey not found - install it from https://chocolatey.org/install")
+		pkgMgr := getPackageManager()
+		if pkgMgr == "unknown" {
+			return errors.New("no Windows package manager found. Please install winget, chocolatey (https://chocolatey.org/install), or scoop (https://scoop.sh)")
 		}
-		fmt.Println("Using package manager: choco")
-		args := append([]string{"install", "-y"}, dependencies...)
-		if err := runCommand("choco", args...); err != nil {
-			return fmt.Errorf("choco install failed: %w", err)
+
+		var args []string
+		var err error
+		switch pkgMgr {
+		case "choco":
+			args = append([]string{"install", "-y"}, dependencies...)
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
+			err = runCommand("choco", args...)
+		case "winget":
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
+			for _, dep := range dependencies {
+				winPkg := mapToWindowsPackage(dep, "winget")
+				err = runCommand("winget", "install", "--id", winPkg, "--accept-package-agreements", "--accept-source-agreements")
+				if err != nil {
+					break
+				}
+			}
+		case "scoop":
+			args = append([]string{"install"}, dependencies...)
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
+			err = runCommand("scoop", args...)
+		default:
+			return fmt.Errorf("unsupported Windows package manager: %s", pkgMgr)
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed installing with %s: %w", pkgMgr, err)
 		}
 
 	default:
@@ -204,22 +228,44 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 }
 
 func getPackageManager() string {
-	// Check for different package managers
-	if _, err := exec.LookPath("pacman"); err == nil {
-		return "pacman"
+	// Check for different package managers based on OS
+	osType := runtime.GOOS
+
+	switch osType {
+	case "windows":
+		// Priority order for Windows: winget > choco > scoop
+		if _, err := exec.LookPath("winget"); err == nil {
+			return "winget"
+		}
+		if _, err := exec.LookPath("choco"); err == nil {
+			return "choco"
+		}
+		if _, err := exec.LookPath("scoop"); err == nil {
+			return "scoop"
+		}
+	case "darwin":
+		if _, err := exec.LookPath("brew"); err == nil {
+			return "brew"
+		}
+	case "linux":
+		// Check for different Linux package managers
+		if _, err := exec.LookPath("pacman"); err == nil {
+			return "pacman"
+		}
+		if _, err := exec.LookPath("apt-get"); err == nil {
+			return "apt"
+		}
+		if _, err := exec.LookPath("dnf"); err == nil {
+			return "dnf"
+		}
+		if _, err := exec.LookPath("yum"); err == nil {
+			return "yum"
+		}
+		if _, err := exec.LookPath("zypper"); err == nil {
+			return "zypper"
+		}
 	}
-	if _, err := exec.LookPath("apt-get"); err == nil {
-		return "apt"
-	}
-	if _, err := exec.LookPath("yum"); err == nil {
-		return "yum"
-	}
-	if _, err := exec.LookPath("dnf"); err == nil {
-		return "dnf"
-	}
-	if _, err := exec.LookPath("brew"); err == nil {
-		return "brew"
-	}
+
 	return "unknown"
 }
 
@@ -229,10 +275,25 @@ func installPackage(pkg string) error {
 
 	// Skip system libraries that don't need installation
 	systemLibs := []string{"m", "pthread", "dl", "rt"}
+	windowsSystemLibs := []string{"ws2_32.lib", "user32.lib", "kernel32.lib", "advapi32.lib", "shell32.lib", "ole32.lib", "oleaut32.lib", "uuid.lib", "winmm.lib", "gdi32.lib", "comctl32.lib", "comdlg32.lib", "winspool.lib"}
+
+	osType := runtime.GOOS
+
+	// Check Unix/Linux system libraries
 	for _, sysLib := range systemLibs {
 		if pkg == sysLib {
 			fmt.Printf("Skipping installation of system library: %s\n", pkg)
 			return nil
+		}
+	}
+
+	// Check Windows system libraries
+	if osType == "windows" {
+		for _, sysLib := range windowsSystemLibs {
+			if pkg == sysLib || strings.EqualFold(pkg, sysLib) {
+				fmt.Printf("Skipping installation of Windows system library: %s\n", pkg)
+				return nil
+			}
 		}
 	}
 
@@ -251,8 +312,32 @@ func installPackage(pkg string) error {
 		cmd = exec.Command("sudo", "yum", "install", "-y", pkg)
 	case "dnf":
 		cmd = exec.Command("sudo", "dnf", "install", "-y", pkg)
+	case "zypper":
+		cmd = exec.Command("sudo", "zypper", "install", "-y", pkg)
+	case "choco":
+		// Chocolatey for Windows
+		winPkg := mapToWindowsPackage(pkg, "choco")
+		cmd = exec.Command("choco", "install", winPkg, "-y")
+	case "winget":
+		// Windows Package Manager
+		winPkg := mapToWindowsPackage(pkg, "winget")
+		cmd = exec.Command("winget", "install", "--id", winPkg, "--accept-package-agreements", "--accept-source-agreements")
+	case "scoop":
+		// Scoop for Windows
+		winPkg := mapToWindowsPackage(pkg, "scoop")
+		cmd = exec.Command("scoop", "install", winPkg)
 	default:
-		return fmt.Errorf("unsupported package manager or package manager not found")
+		osType := runtime.GOOS
+		switch osType {
+		case "windows":
+			return fmt.Errorf("no Windows package manager found. Please install one of: winget (Windows Package Manager), chocolatey (https://chocolatey.org/install), or scoop (https://scoop.sh)")
+		case "darwin":
+			return fmt.Errorf("homebrew not found. Please install it from https://brew.sh/")
+		case "linux":
+			return fmt.Errorf("no supported Linux package manager found. Supported: apt-get, dnf, yum, pacman, zypper")
+		default:
+			return fmt.Errorf("unsupported operating system: %s", osType)
+		}
 	}
 
 	fmt.Printf("Installing %s with %s...\n", pkg, pkgManager)
@@ -277,6 +362,65 @@ func mapToArchPackage(pkg string) string {
 
 	if archPkg, exists := archMap[pkg]; exists {
 		return archPkg
+	}
+	return pkg // Return original if no mapping found
+}
+
+func mapToWindowsPackage(pkg string, pkgManager string) string {
+	// Map common package names to Windows equivalents based on package manager
+	var pkgMap map[string]string
+
+	switch pkgManager {
+	case "choco":
+		pkgMap = map[string]string{
+			"gcc":                  "mingw",
+			"make":                 "make",
+			"build-essential":      "mingw",
+			"curl":                 "curl",
+			"libcurl4-openssl-dev": "curl",
+			"libssl-dev":           "openssl",
+			"openssl":              "openssl",
+			"git":                  "git",
+			"cmake":                "cmake",
+			"python":               "python",
+			"nodejs":               "nodejs",
+			"sqlite":               "sqlite",
+			"sqlite3":              "sqlite",
+			"zlib":                 "zlib",
+			"pkg-config":           "pkgconfiglite",
+		}
+	case "winget":
+		pkgMap = map[string]string{
+			"gcc":                  "MSYS2.MSYS2",
+			"make":                 "GnuWin32.Make",
+			"build-essential":      "MSYS2.MSYS2",
+			"curl":                 "cURL.cURL",
+			"libcurl4-openssl-dev": "cURL.cURL",
+			"git":                  "Git.Git",
+			"cmake":                "Kitware.CMake",
+			"python":               "Python.Python.3.11",
+			"nodejs":               "OpenJS.NodeJS",
+			"sqlite":               "SQLite.SQLite",
+			"sqlite3":              "SQLite.SQLite",
+		}
+	case "scoop":
+		pkgMap = map[string]string{
+			"gcc":     "gcc",
+			"make":    "make",
+			"curl":    "curl",
+			"git":     "git",
+			"cmake":   "cmake",
+			"python":  "python",
+			"nodejs":  "nodejs",
+			"sqlite":  "sqlite3",
+			"sqlite3": "sqlite3",
+		}
+	default:
+		return pkg
+	}
+
+	if winPkg, exists := pkgMap[pkg]; exists {
+		return winPkg
 	}
 	return pkg // Return original if no mapping found
 }
@@ -378,19 +522,22 @@ func runCommand(command string, args ...string) error {
 
 // DownloadResource downloads a file from a URL to a local path
 func DownloadResource(url, localPath string) error {
+	// Normalize path separators for the current OS
+	normalizedPath := filepath.Clean(localPath)
+
 	// Create the directory if it doesn't exist
-	dir := filepath.Dir(localPath)
+	dir := filepath.Dir(normalizedPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
 	// Check if file already exists
-	if _, err := os.Stat(localPath); err == nil {
-		fmt.Printf("Resource already exists: %s (skipping download)\n", localPath)
+	if _, err := os.Stat(normalizedPath); err == nil {
+		fmt.Printf("Resource already exists: %s (skipping download)\n", normalizedPath)
 		return nil
 	}
 
-	fmt.Printf("Downloading %s -> %s\n", url, localPath)
+	fmt.Printf("Downloading %s -> %s\n", url, normalizedPath)
 
 	// Create HTTP client with timeout
 	client := &http.Client{
@@ -410,9 +557,9 @@ func DownloadResource(url, localPath string) error {
 	}
 
 	// Create the output file
-	file, err := os.Create(localPath)
+	file, err := os.Create(normalizedPath)
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", localPath, err)
+		return fmt.Errorf("failed to create file %s: %w", normalizedPath, err)
 	}
 	defer file.Close()
 
@@ -420,11 +567,11 @@ func DownloadResource(url, localPath string) error {
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
 		// Clean up partial file on error
-		os.Remove(localPath)
-		return fmt.Errorf("failed to write file %s: %w", localPath, err)
+		os.Remove(normalizedPath)
+		return fmt.Errorf("failed to write file %s: %w", normalizedPath, err)
 	}
 
-	fmt.Printf("Successfully downloaded: %s\n", localPath)
+	fmt.Printf("Successfully downloaded: %s\n", normalizedPath)
 	return nil
 }
 

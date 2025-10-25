@@ -63,10 +63,14 @@ dependencies:
     - "curl"
     - "openssl"
   
-  # Windows dependencies (installed via Chocolatey)
+  # Windows dependencies (supports multiple package managers)
   windows:
-    - "mingw"
-    - "curl"
+    - "gcc"           # -> mingw (choco) or MSYS2.MSYS2 (winget) or gcc (scoop)
+    - "make"          # -> make (choco) or GnuWin32.Make (winget) or make (scoop)  
+    - "curl"          # -> curl (choco) or cURL.cURL (winget) or curl (scoop)
+    - "git"           # -> git (choco) or Git.Git (winget) or git (scoop)
+    - "ws2_32.lib"    # System libraries are automatically skipped
+    - "user32.lib"    # System libraries are automatically skipped
 ```
 
 #### External Resources
@@ -121,7 +125,10 @@ platforms:
 ### Features
 
 - **Smart Resource Management**: Files are only downloaded if they don't already exist locally
-- **Cross-Platform Package Management**: Automatically detects and uses the appropriate package manager (apt, brew, pacman, dnf, yum, zypper, chocolatey)
+- **Cross-Platform Package Management**: Automatically detects and uses the appropriate package manager
+  - **Linux**: apt-get, dnf, yum, pacman, zypper
+  - **macOS**: Homebrew (brew)  
+  - **Windows**: Windows Package Manager (winget), Chocolatey (choco), Scoop
 - **Platform-Specific Overrides**: Different dependencies and resources for different operating systems
 - **Progress Tracking**: Shows download progress and file information
 - **Error Handling**: Comprehensive error reporting with recovery suggestions
@@ -171,8 +178,41 @@ platforms:
         path: "lib/renderer.so"
   
   windows:
-    dependencies: ["mingw", "sdl2"]
+    dependencies: ["gcc", "make", "ws2_32.lib"]  # gcc->mingw, system libs skipped
     resources:
       - url: "https://example.com/windows-renderer.dll"
-        path: "bin/renderer.dll"
+        path: "bin\\renderer.dll"  # Windows path separators supported
 ```
+
+#### Windows Development Example
+```yaml
+project_name: "windows-native-app"
+sources: ["src/main.c", "src/windows_gui.c"]
+
+dependencies:
+  windows:
+    - "gcc"           # Maps to mingw (choco) or MSYS2.MSYS2 (winget)
+    - "make"          # Maps to make (choco) or GnuWin32.Make (winget)
+    - "curl"          # Maps to curl (choco) or cURL.cURL (winget)
+    - "user32.lib"    # System library - automatically skipped
+    - "gdi32.lib"     # System library - automatically skipped
+
+resources:
+  - url: "https://example.com/app-config.json"
+    path: "config\\app.json"        # Windows-style paths
+  - url: "https://example.com/assets.zip"
+    path: "assets/resources.zip"    # Mixed separators work too
+
+platforms:
+  windows:
+    resources:
+      - url: "https://example.com/windows-specific.dll"
+        path: "bin\\native.dll"
+```
+
+### Windows Package Manager Priority
+
+Catalyst automatically detects Windows package managers in this priority order:
+1. **Windows Package Manager (winget)** - Modern, built-in Windows 10/11 package manager
+2. **Chocolatey (choco)** - Popular third-party package manager  
+3. **Scoop** - Lightweight package manager for developers

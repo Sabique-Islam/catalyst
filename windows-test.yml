@@ -1,0 +1,52 @@
+# Catalyst Windows Test Configuration
+project_name: "windows-test"
+description: "Testing Windows package management and resource downloading"
+author: "Catalyst Test"
+
+# Source Files
+sources:
+  - "main.c"
+
+# Output Binary Name
+output: "windows-app.exe"
+
+# Global Dependencies (will be mapped to Windows equivalents)
+dependencies:
+  windows:
+    - "gcc"           # -> mingw (choco) or MSYS2.MSYS2 (winget)
+    - "make"          # -> make (choco) or GnuWin32.Make (winget)
+    - "curl"          # -> curl (choco) or cURL.cURL (winget)
+    - "git"           # -> git (choco) or Git.Git (winget)
+    - "cmake"         # -> cmake (choco) or Kitware.CMake (winget)
+    - "sqlite3"       # -> sqlite (choco) or SQLite.SQLite (winget)
+    - "ws2_32.lib"    # System library - will be skipped
+    - "user32.lib"    # System library - will be skipped
+    - "kernel32.lib"  # System library - will be skipped
+
+# External Resources with Windows paths
+resources:
+  - url: "https://httpbin.org/uuid"
+    path: "data\\config.json"  # Windows-style path separators
+  - url: "https://httpbin.org/base64/V2luZG93cyBUZXN0IERhdGE="
+    path: "assets/windows-data.txt"
+  - url: "https://raw.githubusercontent.com/microsoft/vscode/main/package.json"
+    path: "external\\vscode-info.json"
+
+# Platform-Specific Overrides
+platforms:
+  # Windows-specific configuration
+  windows:
+    dependencies:
+      - "mingw"         # Direct chocolatey package name
+      - "git"
+      - "curl"
+      - "ws2_32.lib"    # Will be skipped as system library
+      - "advapi32.lib"  # Will be skipped as system library
+    resources:
+      - url: "https://httpbin.org/json"
+        path: "windows\\specific\\data.json"  # Mixed path separators
+      - url: "https://raw.githubusercontent.com/microsoft/TypeScript/main/LICENSE.txt"
+        path: "licenses/typescript-license.txt"
+
+# Metadata
+created_at: "2025-10-25T12:00:00Z"
