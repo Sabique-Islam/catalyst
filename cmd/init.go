@@ -41,15 +41,7 @@ var initCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().StringVarP(&projectName, "name", "n", "my-catalyst-app", "Project name")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// initCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	initCmd.Flags().StringVarP(&projectName, "project", "n", "my-catalyst-app", "Project name")
+	initCmd.Flags().StringVarP(&authorName, "author", "a", "linus-torvalds", "Author name")
+	initCmd.Flags().StringVarP(&license, "license", "l", "MIT", "License")
 }
