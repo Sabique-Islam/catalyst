@@ -9,6 +9,7 @@ import (
 
 	core "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/Sabique-Islam/catalyst/internal/fetch"
+	"github.com/Sabique-Islam/catalyst/internal/install"
 	"github.com/Sabique-Islam/catalyst/internal/pkgdb"
 	"github.com/Sabique-Islam/catalyst/internal/platform"
 	"github.com/Sabique-Islam/catalyst/internal/tui"
@@ -132,6 +133,11 @@ func resolveDependenciesAutoForOS(dependencies []string, pkgManager string) []st
 
 // InitializeProject runs the interactive project initialization wizard
 func InitializeProject() error {
+	return InitializeProjectWithOptions(false, false)
+}
+
+// InitializeProjectWithOptions runs the project initialization with additional options
+func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 	fmt.Println("==============================================")
 	fmt.Println("     Catalyst Project Initialization          ")
 	fmt.Println("==============================================")
@@ -183,6 +189,47 @@ func InitializeProject() error {
 			fmt.Println("No external dependencies found (only standard library headers)")
 		} else {
 			fmt.Printf("Found %d unique dependencies: %v\n", len(abstractDeps), abstractDeps)
+		}
+
+		// Perform symbol analysis if requested
+		var symbolDeps []string
+		if withAnalysis {
+			fmt.Println("Performing missing symbol analysis...")
+			missingSymbols, err := fetch.ScanMissingSymbols(".")
+			if err != nil {
+				fmt.Printf("Warning: Symbol analysis failed: %v\n", err)
+			} else if len(missingSymbols) > 0 {
+				fmt.Printf("Found %d groups of missing symbols\n", len(missingSymbols))
+
+				for i, group := range missingSymbols {
+					fmt.Printf("Group %d (%s): %v\n", i+1, group.Category, fetch.ExtractSymbolNames(group.Symbols))
+
+					if len(group.SuggestedLibs) > 0 {
+						fmt.Printf("  Suggested libraries: %v\n", group.SuggestedLibs)
+						symbolDeps = append(symbolDeps, group.SuggestedLibs...)
+					}
+
+					if len(group.SuggestedFiles) > 0 {
+						fmt.Printf("  Missing files: %v\n", group.SuggestedFiles)
+					}
+				}
+
+				// Add symbol-based dependencies to the main list
+				abstractDeps = append(abstractDeps, symbolDeps...)
+
+				// Remove duplicates
+				uniqueDeps := make(map[string]bool)
+				var finalDeps []string
+				for _, dep := range abstractDeps {
+					if !uniqueDeps[dep] {
+						uniqueDeps[dep] = true
+						finalDeps = append(finalDeps, dep)
+					}
+				}
+				abstractDeps = finalDeps
+
+				fmt.Printf("Total dependencies after symbol analysis: %v\n", abstractDeps)
+			}
 		}
 
 		// Detect OS and package manager
@@ -286,6 +333,27 @@ func InitializeProject() error {
 		// Add includes to config
 		if len(includes) > 0 {
 			config.Includes = includes
+		}
+
+		// Install dependencies if requested
+		if installDeps {
+			fmt.Println("\nInstalling dependencies...")
+			currentOsDeps := allOsDeps[osName]
+			if len(currentOsDeps) > 0 {
+				installer, err := install.NewDependencyInstaller(false, true)
+				if err != nil {
+					fmt.Printf("Warning: Could not create installer: %v\n", err)
+				} else {
+					results, err := installer.InstallBatch(currentOsDeps, 3)
+					if err != nil {
+						fmt.Printf("Error during installation: %v\n", err)
+					} else {
+						install.PrintResults(results, true)
+					}
+				}
+			} else {
+				fmt.Println("No dependencies to install for current platform.")
+			}
 		}
 
 		// Save config using standard method (now includes has its own field)

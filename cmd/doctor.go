@@ -54,7 +54,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	// Scan for header dependencies
 	fmt.Println("\nHeader Dependency Analysis:")
 	fmt.Println("---------------------------")
-	
+
 	headerDeps, err := fetch.ScanDependencies(projectPath)
 	if err != nil {
 		return fmt.Errorf("failed to scan dependencies: %w", err)
@@ -64,7 +64,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		fmt.Println("No header dependencies found.")
 	} else {
 		fmt.Printf("Found %d unique dependencies: %v\n", len(headerDeps), headerDeps)
-		
+
 		// Resolve header dependencies
 		var packageSuggestions []string
 		for _, dep := range headerDeps {
@@ -72,7 +72,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				packageSuggestions = append(packageSuggestions, pkg)
 			}
 		}
-		
+
 		if len(packageSuggestions) > 0 {
 			fmt.Printf("Suggested packages: %v\n", packageSuggestions)
 		}
@@ -81,7 +81,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	// Scan for missing symbols
 	fmt.Println("\nSymbol Linkage Analysis:")
 	fmt.Println("------------------------")
-	
+
 	missing, err := fetch.ScanMissingSymbols(projectPath)
 	if err != nil {
 		fmt.Printf("Could not analyze symbols: %v\n", err)
@@ -89,23 +89,23 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		fmt.Println("No missing symbols detected!")
 	} else {
 		fmt.Printf("Found %d groups of missing symbols:\n\n", len(missing))
-		
+
 		var allSuggestedPackages []string
-		
+
 		for i, group := range missing {
 			fmt.Printf("%d. Missing symbols (%s):\n", i+1, group.Category)
 			symbolNames := fetch.ExtractSymbolNames(group.Symbols)
 			for _, symbol := range symbolNames {
 				fmt.Printf("   - %s\n", symbol)
 			}
-			
+
 			if len(group.SuggestedFiles) > 0 {
 				fmt.Printf("   Create these files: %v\n", group.SuggestedFiles)
 			}
-			
+
 			if len(group.SuggestedLibs) > 0 {
 				fmt.Printf("   Install these libraries: %v\n", group.SuggestedLibs)
-				
+
 				// Resolve library suggestions to actual packages
 				for _, lib := range group.SuggestedLibs {
 					if pkg, found := pkgdb.Translate(lib, pkgManager); found && pkg != "" {
@@ -115,7 +115,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 					}
 				}
 			}
-			
+
 			if len(group.PossibleCauses) > 0 {
 				fmt.Printf("   Possible solutions:\n")
 				for _, cause := range group.PossibleCauses {
@@ -124,19 +124,19 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			}
 			fmt.Println()
 		}
-		
+
 		// Install dependencies if requested
 		if (doctorInstall || doctorDryRun) && len(allSuggestedPackages) > 0 {
 			fmt.Println("Dependency Installation:")
 			fmt.Println("-----------------------")
-			
+
 			// Remove duplicates
 			uniquePackages := removeDuplicates(allSuggestedPackages)
-			
+
 			if doctorDryRun {
 				fmt.Printf("Would install %d packages: %v\n", len(uniquePackages), uniquePackages)
 			}
-			
+
 			// Install dependencies
 			installer, err := install.NewDependencyInstaller(doctorDryRun, doctorVerbose)
 			if err != nil {
@@ -155,7 +155,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	// Summary and recommendations
 	fmt.Println("\nRecommendations:")
 	fmt.Println("----------------")
-	
+
 	if len(missing) > 0 {
 		fmt.Println("1. Create missing implementation files listed above")
 		fmt.Println("2. Install suggested libraries with 'catalyst doctor --install'")
