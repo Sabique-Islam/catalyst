@@ -152,30 +152,30 @@ func Install(dependencies []string) error {
 			successCount := 0
 			hasMSYS2 := false
 			msys2Packages := []string{}
-			
+
 			// First pass: install base packages via winget, collect MSYS2 packages
 			for _, dep := range dependencies {
 				winPkg := mapToWindowsPackage(dep, "winget")
-				
+
 				// Check for Windows compatibility issues
 				checkWindowsPackageCompatibility(dep)
-				
+
 				// Check if this is a package that should be installed via MSYS2 pacman
 				if shouldUseMSYS2Pacman(dep) {
 					msys2Packages = append(msys2Packages, dep)
 					continue
 				}
-				
+
 				fmt.Printf("Installing %s", dep)
 				if winPkg != dep {
 					fmt.Printf(" (package: %s)", winPkg)
 				}
 				fmt.Println("...")
-				
+
 				if winPkg == "MSYS2.MSYS2" {
 					hasMSYS2 = true
 				}
-				
+
 				err = runWingetInstall(winPkg)
 				if err != nil {
 					// For winget, check if it's an "already installed" or "no applicable installer" error
@@ -196,7 +196,7 @@ func Install(dependencies []string) error {
 				fmt.Printf("  → Successfully installed %s\n\n", dep)
 				successCount++
 			}
-			
+
 			// Second pass: install development libraries via MSYS2 pacman if available
 			if len(msys2Packages) > 0 {
 				if hasMSYS2 || isMSYS2Installed() {
@@ -220,7 +220,7 @@ func Install(dependencies []string) error {
 					}
 				}
 			}
-			
+
 			// Only return error if all packages failed and none were skipped
 			if successCount == 0 && lastErr != nil {
 				err = lastErr
@@ -337,23 +337,99 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 
 	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
 
-	// Install each package and collect linker flags
-	libFlags := []string{}
+	// Install each package
 	for _, pkg := range deps {
 		if err := installPackage(pkg); err != nil {
 			return nil, fmt.Errorf("failed to install package %s: %w", pkg, err)
 		}
-		// Assuming link name is same as package (for libraries)
-		if isLibraryPackage(pkg) {
-			libName := extractLibraryName(pkg)
-			if libName != "" {
-				libFlags = append(libFlags, "-l"+libName)
+	}
+
+	// Generate comprehensive linking flags
+	libFlags := generateLinkingFlags(deps)
+	if len(libFlags) > 0 {
+		fmt.Printf("Adding linking flags: %s\n", strings.Join(libFlags, " "))
+	}
+	return libFlags, nil
+}
+
+// generateLinkingFlags generates linking flags based on detected dependencies
+func generateLinkingFlags(dependencies []string) []string {
+	var linkFlags []string
+
+	// Common library mappings for linking
+	linkMap := map[string]string{
+		// Math library
+		"math": "m",
+
+		// Threading
+		"pthread": "pthread",
+
+		// Networking
+		"curl":                 "curl",
+		"libcurl":              "curl",
+		"libcurl4-openssl-dev": "curl",
+
+		// JSON libraries
+		"jansson":        "jansson",
+		"libjansson-dev": "jansson",
+		"json-c":         "json-c",
+		"cjson":          "cjson",
+
+		// Terminal libraries
+		"ncurses":        "ncurses",
+		"libncurses-dev": "ncurses",
+		"termcap":        "termcap",
+
+		// Database libraries
+		"sqlite":         "sqlite3",
+		"sqlite3":        "sqlite3",
+		"libsqlite3-dev": "sqlite3",
+
+		// SSL/Crypto
+		"openssl":    "ssl",
+		"libssl-dev": "ssl",
+		"ssl":        "ssl",
+		"crypto":     "crypto",
+
+		// Compression
+		"zlib":       "z",
+		"zlib1g-dev": "z",
+
+		// Linear algebra
+		"blas":     "blas",
+		"lapack":   "lapack",
+		"openblas": "openblas",
+
+		// GLib
+		"glib":     "glib-2.0",
+		"glib-2.0": "glib-2.0",
+	}
+
+	// Always add math library for C projects
+	linkFlags = append(linkFlags, "-lm")
+
+	// Process dependencies and add linking flags
+	for _, dep := range dependencies {
+		// Normalize dependency name
+		depLower := strings.ToLower(dep)
+
+		if linkLib, found := linkMap[depLower]; found {
+			linkFlag := "-l" + linkLib
+			// Avoid duplicates
+			isDuplicate := false
+			for _, existing := range linkFlags {
+				if existing == linkFlag {
+					isDuplicate = true
+					break
+				}
+			}
+			if !isDuplicate {
+				linkFlags = append(linkFlags, linkFlag)
 			}
 		}
 	}
 
-	fmt.Printf("Dependencies installed with linker flags: %v\n", libFlags)
-	return libFlags, nil
+	return linkFlags
 }
 
 func getPackageManager() string {
@@ -450,7 +526,7 @@ func installPackage(pkg string) error {
 	case "winget":
 		// Check for Windows compatibility issues before installation
 		checkWindowsPackageCompatibility(pkg)
-		
+
 		// Windows Package Manager - check if package should use MSYS2 pacman instead
 		if shouldUseMSYS2Pacman(pkg) {
 			if isMSYS2Installed() {
@@ -462,7 +538,7 @@ func installPackage(pkg string) error {
 				return nil // Don't fail, just warn
 			}
 		}
-		
+
 		// For winget packages
 		winPkg := mapToWindowsPackage(pkg, "winget")
 		fmt.Printf("Installing %s with %s...\n", pkg, pkgManager)
@@ -666,28 +742,84 @@ func isSimpleLibrary(pkg string) bool {
 	return false
 }
 
+// WindowsPackageIssue represents known issues with packages on Windows
+type WindowsPackageIssue struct {
+	PackageName  string
+	Issue        string
+	Alternative  string
+	WorkaroundURL string
+}
+
+// getWindowsPackageIssues returns a map of packages with known Windows compatibility issues
+func getWindowsPackageIssues() map[string]WindowsPackageIssue {
+	return map[string]WindowsPackageIssue{
+		"ncurses": {
+			PackageName:  "ncurses",
+			Issue:        "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+			Alternative:  "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+			WorkaroundURL: "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support.",
+		},
+		"libncurses-dev": {
+			PackageName:  "ncurses",
+			Issue:        "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+			Alternative:  "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+			WorkaroundURL: "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support.",
+		},
+		"x11": {
+			PackageName:  "X11",
+			Issue:        "X11 (X Window System) is not available on Windows natively.",
+			Alternative:  "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+			WorkaroundURL: "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt.",
+		},
+		"libx11-dev": {
+			PackageName:  "X11",
+			Issue:        "X11 (X Window System) is not available on Windows natively.",
+			Alternative:  "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+			WorkaroundURL: "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt.",
+		},
+		"gtk": {
+			PackageName:  "GTK",
+			Issue:        "GTK has limited Windows support and requires significant setup.",
+			Alternative:  "Win32 API, Qt, or wxWidgets for better Windows integration",
+			WorkaroundURL: "Consider using cross-platform frameworks like Qt or Electron for consistent GUI across platforms.",
+		},
+		"pulseaudio": {
+			PackageName:  "PulseAudio",
+			Issue:        "PulseAudio is not natively supported on Windows.",
+			Alternative:  "PortAudio or Windows Audio Session API (WASAPI)",
+			WorkaroundURL: "Use PortAudio for cross-platform audio support.",
+		},
+		"alsa": {
+			PackageName:  "ALSA",
+			Issue:        "ALSA (Advanced Linux Sound Architecture) is Linux-specific.",
+			Alternative:  "PortAudio or Windows Audio APIs (WASAPI, DirectSound)",
+			WorkaroundURL: "Use PortAudio library for cross-platform audio handling.",
+		},
+	}
+}
+
 // checkWindowsPackageCompatibility checks if a package has known Windows issues and warns the user
 func checkWindowsPackageCompatibility(pkg string) {
 	if runtime.GOOS != "windows" {
 		return
 	}
 	
-	issue, exists := getWindowsPackageIssue(pkg)
-	if !exists {
-		return
-	}
+	issues := getWindowsPackageIssues()
+	pkgLower := strings.ToLower(pkg)
 	
-	fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Printf("Package: %s\n", issue.DisplayName)
-	fmt.Printf("Issue: %s\n\n", issue.Issue)
-	fmt.Printf("💡 Suggestion:\n")
-	fmt.Printf("   %s\n\n", issue.Alternative)
-	if issue.WorkaroundURL != "" {
-		fmt.Printf("📖 More Info:\n")
-		fmt.Printf("   %s\n", issue.WorkaroundURL)
+	if issue, exists := issues[pkgLower]; exists {
+		fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		fmt.Printf("Package: %s\n", issue.PackageName)
+		fmt.Printf("Issue: %s\n\n", issue.Issue)
+		fmt.Printf("💡 Suggestion:\n")
+		fmt.Printf("   %s\n\n", issue.Alternative)
+		if issue.WorkaroundURL != "" {
+			fmt.Printf("📖 More Info:\n")
+			fmt.Printf("   %s\n", issue.WorkaroundURL)
+		}
+		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 	}
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 }
 
 // shouldUseMSYS2Pacman checks if a package should be installed via MSYS2 pacman instead of winget
@@ -704,7 +836,7 @@ func shouldUseMSYS2Pacman(pkg string) bool {
 		"ncurses",
 		"libncurses-dev",
 	}
-	
+
 	pkgLower := strings.ToLower(pkg)
 	for _, msys2Pkg := range msys2OnlyPackages {
 		if pkgLower == msys2Pkg {
@@ -721,13 +853,13 @@ func isMSYS2Installed() bool {
 		"C:\\msys64\\usr\\bin\\bash.exe",
 		"C:\\msys32\\usr\\bin\\bash.exe",
 	}
-	
+
 	for _, path := range commonPaths {
 		if _, err := os.Stat(path); err == nil {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -737,13 +869,13 @@ func getMSYS2BashPath() (string, error) {
 		"C:\\msys64\\usr\\bin\\bash.exe",
 		"C:\\msys32\\usr\\bin\\bash.exe",
 	}
-	
+
 	for _, path := range commonPaths {
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}
 	}
-	
+
 	return "", errors.New("MSYS2 bash not found in common locations")
 }
 
@@ -762,11 +894,11 @@ func mapToMSYS2Package(pkg string) string {
 		"ncurses":              "mingw-w64-ucrt-x86_64-ncurses",
 		"libncurses-dev":       "mingw-w64-ucrt-x86_64-ncurses",
 	}
-	
+
 	if msys2Pkg, exists := msys2Map[pkg]; exists {
 		return msys2Pkg
 	}
-	
+
 	// If not in map, try adding the prefix
 	return "mingw-w64-ucrt-x86_64-" + pkg
 }
@@ -777,23 +909,23 @@ func installViaMSYS2Pacman(packages []string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Map packages to MSYS2 names
 	msys2Packages := []string{}
 	for _, pkg := range packages {
 		msys2Packages = append(msys2Packages, mapToMSYS2Package(pkg))
 	}
-	
+
 	// Build pacman command
 	pacmanCmd := "pacman -S --noconfirm " + strings.Join(msys2Packages, " ")
-	
+
 	fmt.Printf("\nRunning MSYS2 pacman: %s\n", pacmanCmd)
-	
+
 	// Execute via bash -lc to get proper environment
 	cmd := exec.Command(bashPath, "-lc", pacmanCmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	return cmd.Run()
 }
 
@@ -810,16 +942,16 @@ func runWingetInstall(packageID string) error {
 	cmd := exec.Command("winget", "install", "--id", packageID, "--accept-package-agreements", "--accept-source-agreements")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	err := cmd.Run()
-	
+
 	if err != nil {
 		// Check for specific winget exit codes
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode := exitErr.ExitCode()
 			// Common winget exit codes (hex values):
 			// 0x8a15000f: Package already installed
-			// 0x8a150014: No applicable installer  
+			// 0x8a150014: No applicable installer
 			// 0x8a150011: Package install already in progress
 			// 0x8a150006: Installer error (may need manual install or already installed)
 			// 0x8a150005: Installer download error
