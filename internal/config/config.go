@@ -71,6 +71,13 @@ func (c *Config) GetDependencies() []string {
 		return deps
 	}
 
-	// 3. Default fallback
+	// 3. Backward compatibility: check for "macos" if osKey is "darwin"
+	if osKey == "darwin" {
+		if deps, ok := c.Dependencies["macos"]; ok {
+			return deps
+		}
+	}
+
+	// 4. Default fallback
 	return []string{}
 }
