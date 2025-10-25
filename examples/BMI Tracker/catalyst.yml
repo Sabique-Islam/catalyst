@@ -16,6 +16,7 @@ dependencies:
   windows:
     - "msys2"
     - "sqlite3"
+    - "ncurses"
     # NOTE: This example uses ncurses which is not fully supported on Windows
     # ncurses has limited Windows compatibility via MSYS2
     # For Windows users, consider using a simple console I/O instead
@@ -28,3 +29,4 @@ flags:
 includes:
   - "ncurses.h"
   - "sqlite3.h"
+  
