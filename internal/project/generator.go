@@ -143,7 +143,12 @@ func InitializeProject() error {
 
 		// Translate abstract dependencies to real package names
 		// Collect dependencies per OS
-		allOsDeps := make(map[string][]string)
+		// Initialize with all major platforms
+		allOsDeps := map[string][]string{
+			"darwin":  {},
+			"linux":   {},
+			"windows": {},
+		}
 		includes := []string{}
 
 		for _, abstractName := range abstractDeps {
@@ -206,9 +211,8 @@ func InitializeProject() error {
 		}
 
 		// Populate config with dependencies for all OSes
-		if len(allOsDeps) > 0 {
-			config.Dependencies = allOsDeps
-		}
+		// allOsDeps is always initialized with all platforms
+		config.Dependencies = allOsDeps
 
 		// Add includes to config
 		if len(includes) > 0 {
