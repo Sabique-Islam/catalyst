@@ -54,7 +54,8 @@ func scanSourceFiles(dir string) ([]string, error) {
 		// Skip hidden directories and build directories
 		if info.IsDir() {
 			name := filepath.Base(path)
-			if strings.HasPrefix(name, ".") || name == "build" || name == "dist" || name == "node_modules" {
+			// Don't skip the current directory "." but skip other hidden dirs
+			if (strings.HasPrefix(name, ".") && name != ".") || name == "build" || name == "dist" || name == "node_modules" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -74,7 +75,54 @@ func scanSourceFiles(dir string) ([]string, error) {
 		return nil
 	})
 
-	return sources, err
+	if err != nil {
+		return nil, err
+	}
+
+	// If we found multiple source files, try to filter intelligently
+	if len(sources) > 1 {
+		sources = filterSourceFiles(sources)
+	}
+
+	return sources, nil
+}
+
+// filterSourceFiles intelligently filters source files to include the most relevant ones
+func filterSourceFiles(allSources []string) []string {
+	var mainSources []string
+	var srcDirSources []string
+	var otherSources []string
+
+	for _, src := range allSources {
+		// Categorize source files
+		if strings.HasPrefix(src, "src/") {
+			srcDirSources = append(srcDirSources, src)
+		} else if !strings.Contains(src, "/") || strings.Count(src, "/") == 0 {
+			// Files in root directory
+			mainSources = append(mainSources, src)
+		} else {
+			// Files in subdirectories (like arc-server/, examples/, etc.)
+			otherSources = append(otherSources, src)
+		}
+	}
+
+	// Strategy: Include root level C files and src/ directory files
+	// This covers the most common project structure
+	var result []string
+
+	// Add main sources (root level)
+	result = append(result, mainSources...)
+
+	// Add src directory sources
+	result = append(result, srcDirSources...)
+
+	// If we have no main sources and src sources, fall back to all sources
+	if len(result) == 0 {
+		result = allSources
+	}
+
+	fmt.Printf("Filtered %d source files from %d total: %v\n", len(result), len(allSources), result)
+	return result
 }
 
 // getDependencyForOS gets the dependency package name for a specific OS/package manager

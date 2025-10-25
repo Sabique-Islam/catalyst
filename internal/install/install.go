@@ -281,22 +281,18 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 
 	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
 
-	// Install each package and collect linker flags
-	libFlags := []string{}
+	// Install each package
 	for _, pkg := range deps {
 		if err := installPackage(pkg); err != nil {
 			return nil, fmt.Errorf("failed to install package %s: %w", pkg, err)
 		}
-		// Assuming link name is same as package (for libraries)
-		if isLibraryPackage(pkg) {
-			libName := extractLibraryName(pkg)
-			if libName != "" {
-				libFlags = append(libFlags, "-l"+libName)
-			}
-		}
 	}
 
-	fmt.Printf("Dependencies installed with linker flags: %v\n", libFlags)
+	// Generate comprehensive linking flags
+	libFlags := generateLinkingFlags(deps)
+	if len(libFlags) > 0 {
+		fmt.Printf("Adding linking flags: %s\n", strings.Join(libFlags, " "))
+	}
 	return libFlags, nil
 }
 
