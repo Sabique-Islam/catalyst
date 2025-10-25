@@ -1,17 +1,25 @@
 package tui
 
 import (
-"fmt"
+	"fmt"
 
-core "github.com/Sabique-Islam/catalyst/internal/config"
-"github.com/manifoldco/promptui"
+	core "github.com/Sabique-Islam/catalyst/internal/config"
+	"github.com/manifoldco/promptui"
 )
 
 // RunMainMenu displays the main menu and returns the selected option
 func RunMainMenu() (string, error) {
 	prompt := promptui.Select{
 		Label: "Select an option",
-		Items: []string{"Build", "Run", "Clean", "Init (Create catalyst.yml)", "Exit"},
+		Items: []string{
+			"Init (Create catalyst.yml)",
+			"Scan (Find dependencies)",
+			"Install (Install dependencies)",
+			"Build",
+			"Run",
+			"Clean",
+			"Exit",
+		},
 	}
 
 	_, result, err := prompt.Run()
