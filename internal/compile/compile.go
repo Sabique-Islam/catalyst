@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	config "github.com/Sabique-Islam/catalyst/internal/config"
 	install "github.com/Sabique-Islam/catalyst/internal/install"
 )
 
@@ -53,68 +54,111 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 
 // BuildProject handles the complete build process including dependency installation and compilation
 func BuildProject(args []string) error {
-	// Install dependencies and get linker flags
-	linkerFlags, err := install.InstallDependenciesAndGetLinkerFlags()
-	if err != nil {
-		return err
-	}
+	var sourceFiles []string
+	var flags []string
 
-	// Separate source files from compiler flags
-	sourceFiles := []string{}
-	flags := []string{}
-	for _, arg := range args {
-		if len(arg) > 0 && arg[0] == '-' {
-			flags = append(flags, arg)
+	// Check if catalyst.yml exists
+	if _, err := os.Stat("catalyst.yml"); err == nil {
+		// Load configuration from catalyst.yml
+		cfg, err := config.LoadConfig("catalyst.yml")
+		if err != nil {
+			return fmt.Errorf("failed to load catalyst.yml: %w", err)
+		}
+
+		// Use sources from config if no args provided
+		if len(args) == 0 {
+			if len(cfg.Sources) == 0 {
+				return fmt.Errorf("no source files specified in catalyst.yml or command line")
+			}
+			sourceFiles = cfg.Sources
+			fmt.Printf("Building from catalyst.yml: %s\n", cfg.ProjectName)
+			fmt.Printf("Source files: %v\n", sourceFiles)
 		} else {
-			sourceFiles = append(sourceFiles, arg)
+			// Use command-line args
+			for _, arg := range args {
+				if len(arg) > 0 && arg[0] == '-' {
+					flags = append(flags, arg)
+				} else {
+					sourceFiles = append(sourceFiles, arg)
+				}
+			}
+		}
+
+		// Install dependencies and get linker flags
+		fmt.Println()
+		fmt.Println("Installing dependencies...")
+		linkerFlags, err := install.InstallDependenciesAndGetLinkerFlags()
+		if err != nil {
+			return err
+		}
+
+		// Add linker flags to compilation flags
+		flags = append(flags, linkerFlags...)
+	} else {
+		// No catalyst.yml, require command-line args
+		if len(args) == 0 {
+			return fmt.Errorf("no catalyst.yml found and no source files provided\n\nUsage:\n  catalyst build <source files>\n  or create catalyst.yml with 'catalyst init'")
+		}
+
+		// Separate source files from compiler flags
+		for _, arg := range args {
+			if len(arg) > 0 && arg[0] == '-' {
+				flags = append(flags, arg)
+			} else {
+				sourceFiles = append(sourceFiles, arg)
+			}
 		}
 	}
 
-	// Add linker flags to compilation flags
-	flags = append(flags, linkerFlags...)
-
 	// Determine output binary
-	output := "bin/project"
+	output := "build/project"
 	if runtime.GOOS == "windows" {
 		output += ".exe"
 	}
 
 	// Compile the C/C++ sources with linker flags
+	fmt.Println()
+	fmt.Println("Compiling project...")
 	if err := CompileC(sourceFiles, output, flags); err != nil {
 		return err
 	}
 
-	fmt.Println("Build complete")
+	fmt.Println()
+	fmt.Println("Build complete!")
+	fmt.Printf("Binary: %s\n", output)
 	return nil
 }
 
 // RunProject executes the compiled binary, building it first if necessary
 func RunProject(args []string) error {
-	// Build the project first if binary doesn't exist or sources are newer
+	// Determine the binary path
+	output := "build/project"
+	if runtime.GOOS == "windows" {
+		output += ".exe"
+	}
+
+	// Build the project first if binary doesn't exist or sources are provided
 	if len(args) > 0 {
 		if err := BuildProject(args); err != nil {
 			return err
 		}
 	} else {
-		// Try to find a default binary to run
-		output := "bin/project"
-		if runtime.GOOS == "windows" {
-			output += ".exe"
-		}
-
+		// Check if binary exists
 		if _, err := os.Stat(output); os.IsNotExist(err) {
-			return fmt.Errorf("no binary found at %s. Please build the project first with 'catalyst build <source files>'", output)
+			// Try to build from catalyst.yml
+			fmt.Println("Binary not found, building from catalyst.yml...")
+			if err := BuildProject([]string{}); err != nil {
+				return fmt.Errorf("build failed: %w", err)
+			}
 		}
-	}
-
-	// Determine the binary path
-	output := "bin/project"
-	if runtime.GOOS == "windows" {
-		output += ".exe"
 	}
 
 	// Execute the binary
-	fmt.Printf("Running: %s\n", output)
+	fmt.Println()
+	fmt.Println("Running project...")
+	fmt.Println("==============================================")
+	fmt.Println()
+
 	cmd := exec.Command("./" + output)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -131,7 +175,16 @@ func RunProject(args []string) error {
 func CleanProject() error {
 	fmt.Println("Cleaning build artifacts...")
 
-	// Remove bin directory
+	// Remove build directory
+	buildDir := "build"
+	if _, err := os.Stat(buildDir); err == nil {
+		if err := os.RemoveAll(buildDir); err != nil {
+			return fmt.Errorf("failed to remove build directory: %w", err)
+		}
+		fmt.Println("Removed build/ directory")
+	}
+
+	// Remove bin directory (legacy)
 	binDir := "bin"
 	if _, err := os.Stat(binDir); err == nil {
 		if err := os.RemoveAll(binDir); err != nil {
@@ -146,7 +199,7 @@ func CleanProject() error {
 	for _, exec := range commonExecs {
 		if _, err := os.Stat(exec); err == nil {
 			if err := os.Remove(exec); err != nil {
-				fmt.Printf("Failed to remove %s: %v\n", exec, err)
+				fmt.Printf("Warning: Failed to remove %s: %v\n", exec, err)
 			} else {
 				fmt.Printf("Removed %s\n", exec)
 				removed++
@@ -154,8 +207,8 @@ func CleanProject() error {
 		}
 	}
 
-	if removed == 0 {
-		fmt.Println("No build artifacts found to clean")
+	if removed == 0 && buildDir != "" {
+		fmt.Println("Clean complete - no additional artifacts found")
 	} else {
 		fmt.Printf("Cleaned %d build artifact(s)\n", removed)
 	}
