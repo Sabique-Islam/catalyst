@@ -3,9 +3,14 @@ package install
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	config "github.com/Sabique-Islam/catalyst/internal/config"
 )
@@ -89,6 +94,7 @@ func Install(dependencies []string) error {
 }
 
 // InstallDependencies loads the config, gets OS-specific dependencies, and installs them
+// Also downloads external resources (files) specified in the config
 func InstallDependencies() error {
 	// Load catalyst.yml
 	cfg, err := config.LoadConfig("catalyst.yml")
@@ -96,22 +102,68 @@ func InstallDependencies() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Get dependencies for current OS only
+	// Install system dependencies
 	deps := cfg.GetDependencies() // returns []string
+	if len(deps) > 0 {
+		fmt.Printf("Installing system dependencies for %s: %v\n", runtime.GOOS, deps)
+		fmt.Println()
+
+		if err := Install(deps); err != nil {
+			return fmt.Errorf("system dependency installation failed: %w", err)
+		}
+
+		fmt.Println()
+		fmt.Println("System dependencies installed successfully!")
+		fmt.Println()
+	} else {
+		fmt.Println("No system dependencies to install for this OS.")
+		fmt.Println()
+	}
+
+	// Install external resources (download files)
+	if err := InstallResources(cfg); err != nil {
+		return fmt.Errorf("external resource installation failed: %w", err)
+	}
+
+	return nil
+}
+
+// InstallExternalResourcesOnly downloads only external resources without installing system dependencies
+func InstallExternalResourcesOnly() error {
+	// Load catalyst.yml
+	cfg, err := config.LoadConfig("catalyst.yml")
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Install only external resources
+	return InstallResources(cfg)
+}
+
+// InstallSystemDependenciesOnly installs only system dependencies without downloading external resources
+func InstallSystemDependenciesOnly() error {
+	// Load catalyst.yml
+	cfg, err := config.LoadConfig("catalyst.yml")
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Install only system dependencies
+	deps := cfg.GetDependencies()
 	if len(deps) == 0 {
-		fmt.Println("No dependencies to install for this OS.")
+		fmt.Println("No system dependencies to install for this OS.")
 		return nil
 	}
 
-	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
+	fmt.Printf("Installing system dependencies for %s: %v\n", runtime.GOOS, deps)
 	fmt.Println()
 
 	if err := Install(deps); err != nil {
-		return fmt.Errorf("installation failed: %w", err)
+		return fmt.Errorf("system dependency installation failed: %w", err)
 	}
 
 	fmt.Println()
-	fmt.Println("Dependencies installed successfully!")
+	fmt.Println("System dependencies installed successfully!")
 	return nil
 }
 
@@ -322,4 +374,95 @@ func runCommand(command string, args ...string) error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	return cmd.Run()
+}
+
+// DownloadResource downloads a file from a URL to a local path
+func DownloadResource(url, localPath string) error {
+	// Create the directory if it doesn't exist
+	dir := filepath.Dir(localPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// Check if file already exists
+	if _, err := os.Stat(localPath); err == nil {
+		fmt.Printf("Resource already exists: %s (skipping download)\n", localPath)
+		return nil
+	}
+
+	fmt.Printf("Downloading %s -> %s\n", url, localPath)
+
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Make the HTTP request
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download %s: HTTP %d %s", url, resp.StatusCode, resp.Status)
+	}
+
+	// Create the output file
+	file, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", localPath, err)
+	}
+	defer file.Close()
+
+	// Copy the response body to file
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		// Clean up partial file on error
+		os.Remove(localPath)
+		return fmt.Errorf("failed to write file %s: %w", localPath, err)
+	}
+
+	fmt.Printf("Successfully downloaded: %s\n", localPath)
+	return nil
+}
+
+// InstallResources downloads external resources defined in the config
+func InstallResources(cfg *config.Config) error {
+	osType := runtime.GOOS
+
+	// Get resources using the config method
+	resources := cfg.GetResources()
+
+	if len(resources) == 0 {
+		fmt.Println("No external resources to download.")
+		return nil
+	}
+
+	fmt.Printf("Downloading %d external resources for %s...\n", len(resources), osType)
+	fmt.Println()
+
+	// Download each resource
+	for i, resource := range resources {
+		fmt.Printf("[%d/%d] ", i+1, len(resources))
+
+		if resource.URL == "" {
+			fmt.Printf("Skipping resource with empty URL\n")
+			continue
+		}
+
+		if resource.Path == "" {
+			fmt.Printf("Skipping resource %s with empty path\n", resource.URL)
+			continue
+		}
+
+		if err := DownloadResource(resource.URL, resource.Path); err != nil {
+			return fmt.Errorf("failed to download resource %s: %w", resource.URL, err)
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("External resources downloaded successfully!")
+	return nil
 }

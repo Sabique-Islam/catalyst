@@ -82,3 +82,16 @@ func (c *Config) GetDependencies() []string {
 	// 4. Default fallback
 	return []string{}
 }
+
+// GetResources returns the resource list for the current OS
+func (c *Config) GetResources() []Resource {
+	osKey := runtime.GOOS
+
+	// 1. OS-specific overrides
+	if platform, ok := c.Platforms[osKey]; ok && len(platform.Resources) > 0 {
+		return platform.Resources
+	}
+
+	// 2. Global resources fallback
+	return c.Resources
+}
