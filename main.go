@@ -1,6 +1,5 @@
 /*
-Copyright © 2025 Sabique-Islam
-
+Copyright (c) 2025 Sabique-Islam
 */
 package main
 

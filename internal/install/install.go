@@ -60,7 +60,7 @@ func Install(dependencies []string) error {
 
 	case "darwin":
 		if _, err := exec.LookPath("brew"); err != nil {
-			return errors.New("homebrew not found — install it from https://brew.sh/")
+			return errors.New("homebrew not found - install it from https://brew.sh/")
 		}
 		args := append([]string{"install"}, dependencies...)
 		if err := runCommand("brew", args...); err != nil {
@@ -69,7 +69,7 @@ func Install(dependencies []string) error {
 
 	case "windows":
 		if _, err := exec.LookPath("choco"); err != nil {
-			return errors.New("chocolatey not found — install it from https://chocolatey.org/install")
+			return errors.New("chocolatey not found - install it from https://chocolatey.org/install")
 		}
 		args := append([]string{"install", "-y"}, dependencies...)
 		if err := runCommand("choco", args...); err != nil {
@@ -80,7 +80,7 @@ func Install(dependencies []string) error {
 		return fmt.Errorf("unsupported OS: %s", osType)
 	}
 
-	fmt.Println("✅ All dependencies installed successfully.")
+	fmt.Println("All dependencies installed successfully.")
 	return nil
 }
 
@@ -104,7 +104,7 @@ func InstallDependencies() error {
 		return fmt.Errorf("installation failed: %w", err)
 	}
 
-	fmt.Println("✅ Dependencies installed")
+	fmt.Println("Dependencies installed")
 	return nil
 }
 
@@ -140,7 +140,7 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 		}
 	}
 
-	fmt.Printf("✅ Dependencies installed with linker flags: %v\n", libFlags)
+	fmt.Printf("Dependencies installed with linker flags: %v\n", libFlags)
 	return libFlags, nil
 }
 

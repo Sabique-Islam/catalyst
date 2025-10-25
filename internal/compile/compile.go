@@ -47,19 +47,19 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 		return fmt.Errorf("compilation failed: %w", err)
 	}
 
-	fmt.Printf("✅ Compilation successful: %s\n", output)
+	fmt.Printf("Compilation successful: %s\n", output)
 	return nil
 }
 
 // BuildProject handles the complete build process including dependency installation and compilation
 func BuildProject(args []string) error {
-	// 1️⃣ Install dependencies and get linker flags
+	// Install dependencies and get linker flags
 	linkerFlags, err := install.InstallDependenciesAndGetLinkerFlags()
 	if err != nil {
 		return err
 	}
 
-	// 2️⃣ Separate source files from compiler flags
+	// Separate source files from compiler flags
 	sourceFiles := []string{}
 	flags := []string{}
 	for _, arg := range args {
@@ -70,27 +70,27 @@ func BuildProject(args []string) error {
 		}
 	}
 
-	// 3️⃣ Add linker flags to compilation flags
+	// Add linker flags to compilation flags
 	flags = append(flags, linkerFlags...)
 
-	// 4️⃣ Determine output binary
+	// Determine output binary
 	output := "bin/project"
 	if runtime.GOOS == "windows" {
 		output += ".exe"
 	}
 
-	// 5️⃣ Compile the C/C++ sources with linker flags
+	// Compile the C/C++ sources with linker flags
 	if err := CompileC(sourceFiles, output, flags); err != nil {
 		return err
 	}
 
-	fmt.Println("✅ Build complete")
+	fmt.Println("Build complete")
 	return nil
 }
 
 // RunProject executes the compiled binary, building it first if necessary
 func RunProject(args []string) error {
-	// 1️⃣ Build the project first if binary doesn't exist or sources are newer
+	// Build the project first if binary doesn't exist or sources are newer
 	if len(args) > 0 {
 		if err := BuildProject(args); err != nil {
 			return err
@@ -107,13 +107,13 @@ func RunProject(args []string) error {
 		}
 	}
 
-	// 2️⃣ Determine the binary path
+	// Determine the binary path
 	output := "bin/project"
 	if runtime.GOOS == "windows" {
 		output += ".exe"
 	}
 
-	// 3️⃣ Execute the binary
+	// Execute the binary
 	fmt.Printf("Running: %s\n", output)
 	cmd := exec.Command("./" + output)
 	cmd.Stdout = os.Stdout
@@ -137,7 +137,7 @@ func CleanProject() error {
 		if err := os.RemoveAll(binDir); err != nil {
 			return fmt.Errorf("failed to remove bin directory: %w", err)
 		}
-		fmt.Println("✅ Removed bin/ directory")
+		fmt.Println("Removed bin/ directory")
 	}
 
 	// Remove common executable names
@@ -146,18 +146,18 @@ func CleanProject() error {
 	for _, exec := range commonExecs {
 		if _, err := os.Stat(exec); err == nil {
 			if err := os.Remove(exec); err != nil {
-				fmt.Printf("⚠️  Failed to remove %s: %v\n", exec, err)
+				fmt.Printf("Failed to remove %s: %v\n", exec, err)
 			} else {
-				fmt.Printf("✅ Removed %s\n", exec)
+				fmt.Printf("Removed %s\n", exec)
 				removed++
 			}
 		}
 	}
 
 	if removed == 0 {
-		fmt.Println("✅ No build artifacts found to clean")
+		fmt.Println("No build artifacts found to clean")
 	} else {
-		fmt.Printf("✅ Cleaned %d build artifact(s)\n", removed)
+		fmt.Printf("Cleaned %d build artifact(s)\n", removed)
 	}
 
 	return nil

@@ -41,9 +41,9 @@ func GenerateYAML(projectName string, authorName string, license string) (string
 
 // InitializeProject runs the interactive project initialization wizard
 func InitializeProject() error {
-	fmt.Println("╔══════════════════════════════════════════════╗")
-	fmt.Println("║     Catalyst Project Initialization          ║")
-	fmt.Println("╚══════════════════════════════════════════════╝")
+	fmt.Println("==============================================")
+	fmt.Println("     Catalyst Project Initialization          ")
+	fmt.Println("==============================================")
 	fmt.Println()
 
 	// Run the interactive wizard
@@ -57,7 +57,7 @@ func InitializeProject() error {
 
 	if automate {
 		fmt.Println()
-		fmt.Println("🔍 Scanning project for dependencies...")
+		fmt.Println("Scanning project for dependencies...")
 
 		// Scan for dependencies
 		abstractDeps, err := fetch.ScanDependencies(".")
@@ -66,9 +66,9 @@ func InitializeProject() error {
 		}
 
 		if len(abstractDeps) == 0 {
-			fmt.Println("ℹ️  No external dependencies found (only standard library headers)")
+			fmt.Println("No external dependencies found (only standard library headers)")
 		} else {
-			fmt.Printf("📦 Found %d unique dependencies: %v\n", len(abstractDeps), abstractDeps)
+			fmt.Printf("Found %d unique dependencies: %v\n", len(abstractDeps), abstractDeps)
 		}
 
 		// Detect OS and package manager
@@ -78,7 +78,7 @@ func InitializeProject() error {
 			return fmt.Errorf("could not detect package manager: %w", err)
 		}
 
-		fmt.Printf("🖥️  Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
+		fmt.Printf("Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
 
 		// Translate abstract dependencies to real package names
 		realDeps := []string{}
@@ -89,7 +89,8 @@ func InitializeProject() error {
 
 			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
 			if !found {
-				fmt.Printf("⚠️  Warning: No translation found for '%s' on %s\n", abstractName, pkgManager)
+			} else {
+				fmt.Printf("Warning: No translation found for '%s' on %s\n", abstractName, pkgManager)
 				continue
 			}
 
@@ -100,9 +101,9 @@ func InitializeProject() error {
 
 			// Check if already installed
 			if platform.IsPackageInstalled(realPkgName, pkgManager) {
-				fmt.Printf("✅ %s is already installed\n", realPkgName)
+				fmt.Printf("%s is already installed\n", realPkgName)
 			} else {
-				fmt.Printf("📥 %s needs to be installed\n", realPkgName)
+				fmt.Printf("%s needs to be installed\n", realPkgName)
 			}
 
 			realDeps = append(realDeps, realPkgName)
@@ -129,7 +130,7 @@ func InitializeProject() error {
 	} else {
 		// Manual mode - just save basic config
 		fmt.Println()
-		fmt.Println("📝 Creating basic catalyst.yml template...")
+		fmt.Println("Creating basic catalyst.yml template...")
 		fmt.Println("   You'll need to manually add dependencies and includes.")
 
 		if err := saveConfig(config, "catalyst.yml"); err != nil {
@@ -138,8 +139,8 @@ func InitializeProject() error {
 	}
 
 	fmt.Println()
-	fmt.Println("✅ Project initialized successfully!")
-	fmt.Printf("📄 Configuration saved to: catalyst.yml\n")
+	fmt.Println("Project initialized successfully!")
+	fmt.Printf("Configuration saved to: catalyst.yml\n")
 
 	if automate {
 		fmt.Println()
