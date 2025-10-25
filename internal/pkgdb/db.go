@@ -66,6 +66,14 @@ var PackageDB = map[string]map[string]string{
 		"vcpkg":  "",
 		"choco":  "",
 	},
+	"sqlite3": {
+		"apt":    "libsqlite3-dev",
+		"dnf":    "sqlite-devel",
+		"pacman": "sqlite",
+		"brew":   "sqlite",
+		"vcpkg":  "sqlite3",
+		"choco":  "sqlite",
+	},
 }
 
 // Translate converts an abstract package name to the real package name

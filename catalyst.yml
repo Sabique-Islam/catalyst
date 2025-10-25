@@ -1,0 +1,9 @@
+project_name: arc
+dependencies:
+    macos:
+        - sqlite
+includes:
+    - stdlib.h
+    - string.h
+    - sqlite3.h
+    - stdio.h

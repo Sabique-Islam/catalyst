@@ -2,8 +2,14 @@ package project
 
 import (
 	"fmt"
+	"os"
 	"time"
 
+	core "github.com/Sabique-Islam/catalyst/internal/config"
+	"github.com/Sabique-Islam/catalyst/internal/fetch"
+	"github.com/Sabique-Islam/catalyst/internal/pkgdb"
+	"github.com/Sabique-Islam/catalyst/internal/platform"
+	"github.com/Sabique-Islam/catalyst/internal/tui"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,49 +41,168 @@ func GenerateYAML(projectName string, authorName string, license string) (string
 
 // InitializeProject runs the interactive project initialization wizard
 func InitializeProject() error {
-	tui := getTUIInterface()
+	fmt.Println("╔══════════════════════════════════════════════╗")
+	fmt.Println("║     Catalyst Project Initialization          ║")
+	fmt.Println("╚══════════════════════════════════════════════╝")
+	fmt.Println()
+
+	// Run the interactive wizard
 	config, automate, err := tui.RunInitWizard()
 	if err != nil {
 		return fmt.Errorf("initialization wizard failed: %w", err)
 	}
 
-	// Save the configuration
-	if err := config.Save("catalyst.yml"); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
+	// Set metadata
+	config.CreatedAt = time.Now().Format(time.RFC3339)
+
+	if automate {
+		fmt.Println()
+		fmt.Println("🔍 Scanning project for dependencies...")
+
+		// Scan for dependencies
+		abstractDeps, err := fetch.ScanDependencies(".")
+		if err != nil {
+			return fmt.Errorf("dependency scan failed: %w", err)
+		}
+
+		if len(abstractDeps) == 0 {
+			fmt.Println("ℹ️  No external dependencies found (only standard library headers)")
+		} else {
+			fmt.Printf("📦 Found %d unique dependencies: %v\n", len(abstractDeps), abstractDeps)
+		}
+
+		// Detect OS and package manager
+		osName := platform.DetectOS()
+		pkgManager, err := platform.DetectPackageManager(osName)
+		if err != nil {
+			return fmt.Errorf("could not detect package manager: %w", err)
+		}
+
+		fmt.Printf("🖥️  Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
+
+		// Translate abstract dependencies to real package names
+		realDeps := []string{}
+		includes := []string{}
+
+		for _, abstractName := range abstractDeps {
+			includes = append(includes, abstractName+".h")
+
+			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
+			if !found {
+				fmt.Printf("⚠️  Warning: No translation found for '%s' on %s\n", abstractName, pkgManager)
+				continue
+			}
+
+			// Skip empty package names (standard library headers)
+			if realPkgName == "" {
+				continue
+			}
+
+			// Check if already installed
+			if platform.IsPackageInstalled(realPkgName, pkgManager) {
+				fmt.Printf("✅ %s is already installed\n", realPkgName)
+			} else {
+				fmt.Printf("📥 %s needs to be installed\n", realPkgName)
+			}
+
+			realDeps = append(realDeps, realPkgName)
+		}
+
+		// Populate config with dependencies
+		if len(realDeps) > 0 {
+			config.Dependencies = map[string][]string{
+				osName: realDeps,
+			}
+		}
+
+		// Add includes section (write manually to YAML)
+		if len(includes) > 0 {
+			if err := saveConfigWithIncludes(config, "catalyst.yml", includes); err != nil {
+				return fmt.Errorf("failed to save configuration: %w", err)
+			}
+		} else {
+			if err := saveConfig(config, "catalyst.yml"); err != nil {
+				return fmt.Errorf("failed to save configuration: %w", err)
+			}
+		}
+
+	} else {
+		// Manual mode - just save basic config
+		fmt.Println()
+		fmt.Println("📝 Creating basic catalyst.yml template...")
+		fmt.Println("   You'll need to manually add dependencies and includes.")
+
+		if err := saveConfig(config, "catalyst.yml"); err != nil {
+			return fmt.Errorf("failed to save configuration: %w", err)
+		}
 	}
 
-	fmt.Printf("✅ Project initialized successfully!\n")
+	fmt.Println()
+	fmt.Println("✅ Project initialized successfully!")
+	fmt.Printf("📄 Configuration saved to: catalyst.yml\n")
+
 	if automate {
-		fmt.Println("🔧 Automation enabled - dependencies will be installed automatically")
+		fmt.Println()
+		fmt.Println("Next steps:")
+		fmt.Println("  1. Review catalyst.yml")
+		fmt.Println("  2. Run 'catalyst install' to install dependencies")
+		fmt.Println("  3. Run 'catalyst build' to compile your project")
 	}
 
 	return nil
 }
 
-// TUIInterface allows for easier testing by making TUI calls mockable
-type TUIInterface interface {
-	RunInitWizard() (ConfigInterface, bool, error)
+// saveConfig writes the config to a YAML file
+func saveConfig(cfg *core.Config, filename string) error {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal YAML: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }
 
-type ConfigInterface interface {
-	Save(filename string) error
-}
+// saveConfigWithIncludes writes the config with a custom includes section
+func saveConfigWithIncludes(cfg *core.Config, filename string, includes []string) error {
+	// Create a custom structure to include the "includes" field
+	type ConfigWithIncludes struct {
+		ProjectName  string              `yaml:"project_name"`
+		Dependencies map[string][]string `yaml:"dependencies,omitempty"`
+		Includes     []string            `yaml:"includes,omitempty"`
+		Resources    []string            `yaml:"resources,omitempty"`
+	}
 
-// getRealTUI returns the real TUI implementation
-func getTUIInterface() TUIInterface {
-	return &realTUI{}
-}
+	customCfg := ConfigWithIncludes{
+		ProjectName:  cfg.ProjectName,
+		Dependencies: cfg.Dependencies,
+		Includes:     includes,
+	}
 
-type realTUI struct{}
+	// Convert Resources to string array if needed
+	if len(cfg.Resources) > 0 {
+		resources := make([]string, len(cfg.Resources))
+		for i, r := range cfg.Resources {
+			if r.Path != "" {
+				resources[i] = r.Path
+			} else {
+				resources[i] = r.URL
+			}
+		}
+		customCfg.Resources = resources
+	}
 
-func (r *realTUI) RunInitWizard() (ConfigInterface, bool, error) {
-	// We'll need to import and use the actual tui.RunInitWizard
-	// For now, return a placeholder
-	return &dummyConfig{}, false, fmt.Errorf("TUI wizard not yet integrated - please create catalyst.yml manually")
-}
+	data, err := yaml.Marshal(customCfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal YAML: %w", err)
+	}
 
-type dummyConfig struct{}
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
 
-func (d *dummyConfig) Save(filename string) error {
 	return nil
 }

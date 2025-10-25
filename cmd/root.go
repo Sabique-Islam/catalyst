@@ -1,6 +1,5 @@
 /*
 Copyright © 2025 Sabique-Islam
-
 */
 package cmd
 
@@ -8,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Sabique-Islam/catalyst/internal/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -17,16 +17,56 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "catalyst",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "A modern C build tool with dependency management",
+	Long: `Catalyst is a modern build tool for C projects that simplifies
+dependency management, compilation, and project setup.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+Features:
+  • Interactive project initialization
+  • Automatic dependency scanning
+  • Cross-platform package management
+  • Simple build and run commands
+
+Run 'catalyst' without arguments to launch the interactive menu,
+or use one of the available commands.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// If no subcommand is provided, show the interactive menu
+		return runInteractiveMenu()
+	},
+}
+
+// runInteractiveMenu displays the main menu and executes the selected command
+func runInteractiveMenu() error {
+	for {
+		choice, err := tui.RunMainMenu()
+		if err != nil {
+			return err
+		}
+
+		switch choice {
+		case "Build":
+			if err := buildCmd.RunE(buildCmd, []string{}); err != nil {
+				fmt.Printf("❌ Build failed: %v\n\n", err)
+			}
+		case "Run":
+			if err := runCmd.RunE(runCmd, []string{}); err != nil {
+				fmt.Printf("❌ Run failed: %v\n\n", err)
+			}
+		case "Clean":
+			if err := cleanCmd.RunE(cleanCmd, []string{}); err != nil {
+				fmt.Printf("❌ Clean failed: %v\n\n", err)
+			}
+		case "Init (Create catalyst.yml)":
+			if err := initCmd.RunE(initCmd, []string{}); err != nil {
+				fmt.Printf("❌ Init failed: %v\n\n", err)
+			}
+		case "Exit":
+			fmt.Println("👋 Goodbye!")
+			return nil
+		default:
+			fmt.Printf("Unknown option: %s\n", choice)
+		}
+	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
