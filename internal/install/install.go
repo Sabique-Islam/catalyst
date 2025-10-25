@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	config "github.com/Sabique-Islam/catalyst/internal/config"
 )
@@ -105,6 +106,135 @@ func InstallDependencies() error {
 
 	fmt.Println("✅ Dependencies installed")
 	return nil
+}
+
+// InstallDependenciesAndGetLinkerFlags installs dependencies and returns linker flags for them
+func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
+	// Load catalyst.yml
+	cfg, err := config.LoadConfig("catalyst.yml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Get dependencies for current OS only
+	deps := cfg.GetDependencies() // returns []string
+	if len(deps) == 0 {
+		fmt.Println("No dependencies to install for this OS.")
+		return []string{}, nil
+	}
+
+	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
+
+	// Install each package and collect linker flags
+	libFlags := []string{}
+	for _, pkg := range deps {
+		if err := installPackage(pkg); err != nil {
+			return nil, fmt.Errorf("failed to install package %s: %w", pkg, err)
+		}
+		// Assuming link name is same as package (for libraries)
+		if isLibraryPackage(pkg) {
+			libName := extractLibraryName(pkg)
+			if libName != "" {
+				libFlags = append(libFlags, "-l"+libName)
+			}
+		}
+	}
+
+	fmt.Printf("✅ Dependencies installed with linker flags: %v\n", libFlags)
+	return libFlags, nil
+}
+
+// installPackage installs a single package
+func installPackage(pkg string) error {
+	// Skip installation for system libraries that are built-in
+	if isSystemLibrary(pkg) {
+		fmt.Printf("Skipping installation of system library: %s\n", pkg)
+		return nil
+	}
+	return Install([]string{pkg})
+}
+
+// isSystemLibrary checks if a package is a system library that doesn't need installation
+func isSystemLibrary(pkg string) bool {
+	systemLibs := []string{
+		"m",       // Math library (built into glibc)
+		"pthread", // POSIX threads (built into glibc on modern systems)
+		"dl",      // Dynamic loading (built into glibc)
+		"c",       // C standard library
+		"rt",      // POSIX real-time extensions
+	}
+
+	for _, lib := range systemLibs {
+		if pkg == lib {
+			return true
+		}
+	}
+	return false
+}
+
+// isLibraryPackage checks if a package is a library that needs linking
+func isLibraryPackage(pkg string) bool {
+	// Common library patterns
+	libraryPatterns := []string{
+		"lib", "-dev", ".lib", "pthread", "m", "ssl", "crypto", "curl", "sqlite", "z", "dl",
+	}
+
+	pkgLower := strings.ToLower(pkg)
+	for _, pattern := range libraryPatterns {
+		if strings.Contains(pkgLower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// extractLibraryName extracts the library name for linking from package name
+func extractLibraryName(pkg string) string {
+	// Handle common package name to library name mappings
+	libMappings := map[string]string{
+		"libssl-dev":           "ssl",
+		"libcrypto-dev":        "crypto",
+		"libcurl4-openssl-dev": "curl",
+		"libsqlite3-dev":       "sqlite3",
+		"pthread":              "pthread",
+		"m":                    "m",
+		"ws2_32.lib":           "ws2_32",
+		"user32.lib":           "user32",
+		"kernel32.lib":         "kernel32",
+	}
+
+	// Direct mapping
+	if libName, exists := libMappings[pkg]; exists {
+		return libName
+	}
+
+	// Extract from lib*-dev pattern
+	if strings.HasPrefix(pkg, "lib") && strings.HasSuffix(pkg, "-dev") {
+		return pkg[3 : len(pkg)-4] // Remove "lib" prefix and "-dev" suffix
+	}
+
+	// Extract from *.lib pattern
+	if strings.HasSuffix(pkg, ".lib") {
+		return pkg[:len(pkg)-4] // Remove ".lib" suffix
+	}
+
+	// For simple library names, use as-is
+	if isSimpleLibrary(pkg) {
+		return pkg
+	}
+
+	return ""
+}
+
+// isSimpleLibrary checks if this is a simple library name that can be used directly
+func isSimpleLibrary(pkg string) bool {
+	simpleLibs := []string{"pthread", "m", "z", "dl", "ssl", "crypto", "curl", "sqlite3"}
+	for _, lib := range simpleLibs {
+		if pkg == lib {
+			return true
+		}
+	}
+	return false
 }
 
 // runCommand executes a command with arguments

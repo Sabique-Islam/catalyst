@@ -53,8 +53,9 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 
 // BuildProject handles the complete build process including dependency installation and compilation
 func BuildProject(args []string) error {
-	// 1️⃣ Install dependencies first (optional)
-	if err := install.InstallDependencies(); err != nil {
+	// 1️⃣ Install dependencies and get linker flags
+	linkerFlags, err := install.InstallDependenciesAndGetLinkerFlags()
+	if err != nil {
 		return err
 	}
 
@@ -69,13 +70,16 @@ func BuildProject(args []string) error {
 		}
 	}
 
-	// 3️⃣ Determine output binary
+	// 3️⃣ Add linker flags to compilation flags
+	flags = append(flags, linkerFlags...)
+
+	// 4️⃣ Determine output binary
 	output := "bin/project"
 	if runtime.GOOS == "windows" {
 		output += ".exe"
 	}
 
-	// 4️⃣ Compile the C/C++ sources
+	// 5️⃣ Compile the C/C++ sources with linker flags
 	if err := CompileC(sourceFiles, output, flags); err != nil {
 		return err
 	}
