@@ -22,6 +22,7 @@ type Config struct {
 	Output       string              `yaml:"output,omitempty"`
 	Flags        []string            `yaml:"flags,omitempty"`
 	Dependencies map[string][]string `yaml:"dependencies,omitempty"`
+	Includes     []string            `yaml:"includes,omitempty"`
 	Resources    []Resource          `yaml:"resources,omitempty"`
 	// Optional stuff to add
 	Author      string                    `yaml:"author,omitempty"`

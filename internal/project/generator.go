@@ -142,18 +142,26 @@ func InitializeProject() error {
 		fmt.Println()
 
 		// Translate abstract dependencies to real package names
-		realDeps := []string{}
+		// Collect dependencies per OS
+		allOsDeps := make(map[string][]string)
 		includes := []string{}
 
 		for _, abstractName := range abstractDeps {
 			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
-			if !found {
-				// Not in package database - likely a project-local header, skip it
-				continue
+
+			// Add to includes list - ALL headers (both standard and external)
+			// Check if it already ends with .h to avoid double extension
+			if strings.HasSuffix(abstractName, ".h") {
+				includes = append(includes, abstractName)
+			} else {
+				includes = append(includes, abstractName+".h")
 			}
 
-			// Add to includes list (this is a real system header)
-			includes = append(includes, abstractName+".h")
+			if !found {
+				// Not in package database - likely a project-local header
+				fmt.Printf("%s is a local/project header\n", abstractName)
+				continue
+			}
 
 			// Skip empty package names (standard library headers)
 			if realPkgName == "" {
@@ -161,32 +169,55 @@ func InitializeProject() error {
 				continue
 			}
 
-			// Check if already installed
+			// Get package names for all major OSes
+			darwinPkg, _ := pkgdb.Translate(abstractName, "brew")
+			linuxPkg, _ := pkgdb.Translate(abstractName, "apt")
+			windowsPkg, _ := pkgdb.Translate(abstractName, "vcpkg")
+
+			if darwinPkg != "" {
+				allOsDeps["darwin"] = append(allOsDeps["darwin"], darwinPkg)
+			}
+			if linuxPkg != "" {
+				allOsDeps["linux"] = append(allOsDeps["linux"], linuxPkg)
+			}
+			if windowsPkg != "" {
+				allOsDeps["windows"] = append(allOsDeps["windows"], windowsPkg)
+			}
+
+			// Check if already installed on current system
 			if platform.IsPackageInstalled(realPkgName, pkgManager) {
 				fmt.Printf("%s is already installed\n", realPkgName)
 			} else {
 				fmt.Printf("%s needs to be installed\n", realPkgName)
 			}
-
-			realDeps = append(realDeps, realPkgName)
 		}
 
-		// Populate config with dependencies
-		if len(realDeps) > 0 {
-			config.Dependencies = map[string][]string{
-				osName: realDeps,
+		// Remove duplicates from each OS dependency list
+		for os, deps := range allOsDeps {
+			uniqueDeps := make(map[string]bool)
+			uniqueList := []string{}
+			for _, dep := range deps {
+				if !uniqueDeps[dep] {
+					uniqueDeps[dep] = true
+					uniqueList = append(uniqueList, dep)
+				}
 			}
+			allOsDeps[os] = uniqueList
 		}
 
-		// Add includes section (write manually to YAML)
+		// Populate config with dependencies for all OSes
+		if len(allOsDeps) > 0 {
+			config.Dependencies = allOsDeps
+		}
+
+		// Add includes to config
 		if len(includes) > 0 {
-			if err := saveConfigWithIncludes(config, "catalyst.yml", includes); err != nil {
-				return fmt.Errorf("failed to save configuration: %w", err)
-			}
-		} else {
-			if err := saveConfig(config, "catalyst.yml"); err != nil {
-				return fmt.Errorf("failed to save configuration: %w", err)
-			}
+			config.Includes = includes
+		}
+
+		// Save config using standard method (now includes has its own field)
+		if err := saveConfig(config, "catalyst.yml"); err != nil {
+			return fmt.Errorf("failed to save configuration: %w", err)
 		}
 
 	} else {
@@ -218,53 +249,6 @@ func InitializeProject() error {
 // saveConfig writes the config to a YAML file
 func saveConfig(cfg *core.Config, filename string) error {
 	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to marshal YAML: %w", err)
-	}
-
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
-}
-
-// saveConfigWithIncludes writes the config with a custom includes section
-func saveConfigWithIncludes(cfg *core.Config, filename string, includes []string) error {
-	// Create a custom structure to include the "includes" field
-	type ConfigWithIncludes struct {
-		ProjectName  string              `yaml:"project_name"`
-		Sources      []string            `yaml:"sources,omitempty"`
-		Output       string              `yaml:"output,omitempty"`
-		Flags        []string            `yaml:"flags,omitempty"`
-		Dependencies map[string][]string `yaml:"dependencies,omitempty"`
-		Includes     []string            `yaml:"includes,omitempty"`
-		Resources    []string            `yaml:"resources,omitempty"`
-	}
-
-	customCfg := ConfigWithIncludes{
-		ProjectName:  cfg.ProjectName,
-		Sources:      cfg.Sources,
-		Output:       cfg.Output,
-		Flags:        cfg.Flags,
-		Dependencies: cfg.Dependencies,
-		Includes:     includes,
-	}
-
-	// Convert Resources to string array if needed
-	if len(cfg.Resources) > 0 {
-		resources := make([]string, len(cfg.Resources))
-		for i, r := range cfg.Resources {
-			if r.Path != "" {
-				resources[i] = r.Path
-			} else {
-				resources[i] = r.URL
-			}
-		}
-		customCfg.Resources = resources
-	}
-
-	data, err := yaml.Marshal(customCfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal YAML: %w", err)
 	}
