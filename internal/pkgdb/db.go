@@ -74,7 +74,7 @@ var PackageDB = map[string]map[string]string{
 		"apt":    "", // Built into glibc on Linux
 		"dnf":    "", // Built into glibc on Linux
 		"pacman": "", // Built into glibc on Linux
-		"brew":   "", // Built into macOS
+		"brew":   "", // Built into darwin
 		"vcpkg":  "pthreads",
 		"choco":  "pthreads",
 	},

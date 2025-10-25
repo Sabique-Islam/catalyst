@@ -55,7 +55,7 @@ func isInstalledPacman(pkgName string) bool {
 	return cmd.Run() == nil
 }
 
-// isInstalledBrew checks if a package is installed using brew (macOS Homebrew)
+// isInstalledBrew checks if a package is installed using brew (darwin Homebrew)
 // Uses: brew list --formula | grep -q <pkgName>
 func isInstalledBrew(pkgName string) bool {
 	// First get the list of installed formulas
