@@ -76,6 +76,60 @@ func scanSourceFiles(dir string) ([]string, error) {
 	return sources, err
 }
 
+// getDependencyForOS gets the dependency package name for a specific OS/package manager
+// It tries static translation first, then falls back to dynamic search
+func getDependencyForOS(abstractName, pkgManager string) string {
+	// First try static translation
+	if pkg, found := pkgdb.Translate(abstractName, pkgManager); found {
+		return pkg
+	}
+
+	// If not found, try dynamic search
+	if pkg, found := pkgdb.TranslateWithSearch(abstractName, pkgManager); found {
+		return pkg
+	}
+
+	return ""
+}
+
+// resolveDependenciesForOS resolves dependencies for a specific OS with optional interactivity
+func resolveDependenciesForOS(dependencies []string, pkgManager string, interactive bool) []string {
+	fmt.Printf("\n--- Resolving dependencies for %s ---\n", pkgManager)
+	
+	results := pkgdb.BatchSearch(dependencies, pkgManager, interactive)
+	
+	var packages []string
+	for _, pkg := range results {
+		if pkg != "" { // Skip empty packages (standard library)
+			packages = append(packages, pkg)
+		}
+	}
+	
+	return packages
+}
+
+// resolveDependenciesAutoForOS resolves dependencies automatically without user interaction
+func resolveDependenciesAutoForOS(dependencies []string, pkgManager string) []string {
+	var packages []string
+	
+	for _, dep := range dependencies {
+		// Try static first
+		if pkg, found := pkgdb.Translate(dep, pkgManager); found {
+			if pkg != "" { // Skip empty (standard library) packages
+				packages = append(packages, pkg)
+			}
+			continue
+		}
+		
+		// Try dynamic search
+		if pkg, found := pkgdb.TranslateWithSearch(dep, pkgManager); found {
+			packages = append(packages, pkg)
+		}
+	}
+	
+	return packages
+}
+
 // InitializeProject runs the interactive project initialization wizard
 func InitializeProject() error {
 	fmt.Println("==============================================")
@@ -135,10 +189,18 @@ func InitializeProject() error {
 		osName := platform.DetectOS()
 		pkgManager, err := platform.DetectPackageManager(osName)
 		if err != nil {
-			return fmt.Errorf("could not detect package manager: %w", err)
+			fmt.Printf("Could not detect package manager: %v\n", err)
+			fmt.Printf("Setup advice:\n%s\n", platform.GetPackageManagerSetupAdvice())
+			return fmt.Errorf("package manager not available")
 		}
 
 		fmt.Printf("Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
+
+		// Setup and verify package manager tools
+		if err := platform.SetupPackageManager(pkgManager); err != nil {
+			fmt.Printf("Warning: %v\n", err)
+		}
+		
 		fmt.Println()
 
 		// Translate abstract dependencies to real package names
@@ -151,9 +213,35 @@ func InitializeProject() error {
 		}
 		includes := []string{}
 
-		for _, abstractName := range abstractDeps {
-			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
+		// Extract resolution preference from config (temporary storage in Author field)
+		resolutionMethod := config.Author
+		if resolutionMethod == "" {
+			resolutionMethod = "auto" // Default to automatic
+		}
 
+		fmt.Printf("Using %s dependency resolution...\n\n", resolutionMethod)
+
+		// Resolve dependencies based on preference
+		if resolutionMethod == "interactive" {
+			// Interactive mode - let user choose for each OS
+			allOsDeps["darwin"] = resolveDependenciesForOS(abstractDeps, "brew", true)
+			allOsDeps["linux"] = resolveDependenciesForOS(abstractDeps, "apt", true)  
+			allOsDeps["windows"] = resolveDependenciesForOS(abstractDeps, "vcpkg", true)
+		} else if resolutionMethod == "database" {
+			// Database only mode
+			allOsDeps["darwin"] = resolveDependenciesForOS(abstractDeps, "brew", false)
+			allOsDeps["linux"] = resolveDependenciesForOS(abstractDeps, "apt", false)
+			allOsDeps["windows"] = resolveDependenciesForOS(abstractDeps, "vcpkg", false)
+		} else {
+			// Auto mode - use enhanced resolution without interaction
+			fmt.Println("Automatically resolving dependencies for all platforms...")
+			allOsDeps["darwin"] = resolveDependenciesAutoForOS(abstractDeps, "brew")
+			allOsDeps["linux"] = resolveDependenciesAutoForOS(abstractDeps, "apt")
+			allOsDeps["windows"] = resolveDependenciesAutoForOS(abstractDeps, "vcpkg")
+		}
+
+		// Build includes list
+		for _, abstractName := range abstractDeps {
 			// Add to includes list - ALL headers (both standard and external)
 			// Check if it already ends with .h to avoid double extension
 			if strings.HasSuffix(abstractName, ".h") {
@@ -161,41 +249,22 @@ func InitializeProject() error {
 			} else {
 				includes = append(includes, abstractName+".h")
 			}
+		}
 
-			if !found {
-				// Not in package database - likely a project-local header
-				fmt.Printf("%s is a local/project header\n", abstractName)
-				continue
-			}
-
-			// Skip empty package names (standard library headers)
-			if realPkgName == "" {
-				fmt.Printf("%s is a standard library header (no package needed)\n", abstractName)
-				continue
-			}
-
-			// Get package names for all major OSes
-			darwinPkg, _ := pkgdb.Translate(abstractName, "brew")
-			linuxPkg, _ := pkgdb.Translate(abstractName, "apt")
-			windowsPkg, _ := pkgdb.Translate(abstractName, "vcpkg")
-
-			if darwinPkg != "" {
-				allOsDeps["darwin"] = append(allOsDeps["darwin"], darwinPkg)
-			}
-			if linuxPkg != "" {
-				allOsDeps["linux"] = append(allOsDeps["linux"], linuxPkg)
-			}
-			if windowsPkg != "" {
-				allOsDeps["windows"] = append(allOsDeps["windows"], windowsPkg)
-			}
-
-			// Check if already installed on current system
-			if platform.IsPackageInstalled(realPkgName, pkgManager) {
-				fmt.Printf("%s is already installed\n", realPkgName)
-			} else {
-				fmt.Printf("%s needs to be installed\n", realPkgName)
+		// Check what's already installed on current system (for info only)
+		fmt.Println("\nChecking current system installation status...")
+		for _, abstractName := range abstractDeps {
+			if realPkgName, found := pkgdb.Translate(abstractName, pkgManager); found && realPkgName != "" {
+				if platform.IsPackageInstalled(realPkgName, pkgManager) {
+					fmt.Printf("✓ %s (%s) is already installed\n", abstractName, realPkgName)
+				} else {
+					fmt.Printf("✗ %s (%s) needs to be installed\n", abstractName, realPkgName)
+				}
 			}
 		}
+
+		// Clear the temporary resolution preference from Author field
+		config.Author = ""
 
 		// Remove duplicates from each OS dependency list
 		for os, deps := range allOsDeps {

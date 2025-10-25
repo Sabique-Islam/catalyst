@@ -262,3 +262,21 @@ func Translate(abstractName, pkgManager string) (string, bool) {
 
 	return realName, true
 }
+
+// TranslateWithSearch attempts static translation first, then falls back to dynamic search
+func TranslateWithSearch(abstractName, pkgManager string) (string, bool) {
+	// First try static translation
+	if realName, found := Translate(abstractName, pkgManager); found {
+		return realName, true
+	}
+
+	// If not found in static database, try dynamic search
+	searchResults, err := DynamicSearch(abstractName, pkgManager)
+	if err != nil {
+		return "", false
+	}
+
+	// Get the best match from search results
+	bestMatch, found := GetBestMatch(searchResults)
+	return bestMatch, found
+}

@@ -97,6 +97,36 @@ func RunInitWizard() (*core.Config, bool, error) {
 	// If automate is false, the caller will handle creating manual instructions
 	automate := (idx == 0)
 
+	// Step 3: If automating, ask about dependency resolution method
+	if automate {
+		resolutionPrompt := promptui.Select{
+			Label: "Dependency resolution method:",
+			Items: []string{
+				"Automatic - Use database + dynamic search without prompts",
+				"Interactive - Let me choose when multiple packages are found",
+				"Database only - Only use built-in package database",
+			},
+		}
+
+		resIdx, _, err := resolutionPrompt.Run()
+		if err != nil {
+			if err == promptui.ErrInterrupt {
+				return nil, false, fmt.Errorf("operation cancelled by user")
+			}
+			return nil, false, fmt.Errorf("resolution method prompt failed: %v", err)
+		}
+
+		// Store the resolution preference in config
+		switch resIdx {
+		case 0:
+			cfg.Author = "auto" // Using Author field temporarily to store preference
+		case 1:
+			cfg.Author = "interactive"
+		case 2:
+			cfg.Author = "database"
+		}
+	}
+
 	// Ask for an optional entry point (main source file) regardless of automation
 	entryPrompt := promptui.Prompt{
 		Label: "Entry point (path to main source file) — leave blank to auto-scan",
