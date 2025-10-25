@@ -1,4 +1,4 @@
-package build
+package compile
 
 import (
 	"fmt"
@@ -6,6 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	config "github.com/Sabique-Islam/catalyst/internal/config"
+	install "github.com/Sabique-Islam/catalyst/internal/install"
 )
 
 // CompileC compiles a C/C++ source file or project into a binary
@@ -46,5 +49,62 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 	}
 
 	fmt.Printf("✅ Compilation successful: %s\n", output)
+	return nil
+}
+
+// BuildProject handles the complete build process including dependency installation and compilation
+func BuildProject(args []string) error {
+	// 1️⃣ Install dependencies first (optional)
+	if err := installDependencies(); err != nil {
+		return err
+	}
+
+	// 2️⃣ Separate source files from compiler flags
+	sourceFiles := []string{}
+	flags := []string{}
+	for _, arg := range args {
+		if len(arg) > 0 && arg[0] == '-' {
+			flags = append(flags, arg)
+		} else {
+			sourceFiles = append(sourceFiles, arg)
+		}
+	}
+
+	// 3️⃣ Determine output binary
+	output := "bin/project"
+	if runtime.GOOS == "windows" {
+		output += ".exe"
+	}
+
+	// 4️⃣ Compile the C/C++ sources
+	if err := CompileC(sourceFiles, output, flags); err != nil {
+		return err
+	}
+
+	fmt.Println("✅ Build complete")
+	return nil
+}
+
+// installDependencies loads the config, gets OS-specific dependencies, and installs them
+func installDependencies() error {
+	// Load catalyst.yml
+	cfg, err := config.LoadConfig("catalyst.yml")
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Get dependencies for current OS only
+	deps := cfg.GetDependencies() // returns []string
+	if len(deps) == 0 {
+		fmt.Println("No dependencies to install for this OS.")
+		return nil
+	}
+
+	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
+	if err := install.Install(deps); err != nil {
+		return fmt.Errorf("installation failed: %w", err)
+	}
+
+	fmt.Println("✅ Dependencies installed")
 	return nil
 }
