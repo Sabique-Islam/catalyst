@@ -1,5 +1,14 @@
 package core
 
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
 // Resource defines a file to be downloaded
 type Resource struct {
 	URL  string `yaml:"url"`
@@ -8,16 +17,16 @@ type Resource struct {
 
 // Config is the main project configuration
 type Config struct {
-	ProjectName  string              				`yaml:"project_name"`
-	Sources      []string            				`yaml:"sources"`
-	Dependencies map[string][]string 				`yaml:"dependencies"`
-	Resources    []Resource          				`yaml:"resources"`
+	ProjectName  string              `yaml:"project_name"`
+	Sources      []string            `yaml:"sources"`
+	Dependencies map[string][]string `yaml:"dependencies"`
+	Resources    []Resource          `yaml:"resources"`
 	// Optional stuff to add
-	Author 			 string 										`yaml:"author,omitempty"`
-	Description  string 										`yaml:"description,omitempty"`
-	Env 				 map[string]string 					`yaml:"env,omitempty"`
-	Platforms 	 map[string]PlatformConfig 	`yaml:"platforms,omitempty"`
-	CreatedAt 	 string 										`yaml:"created_at,omitempty"`
+	Author      string                    `yaml:"author,omitempty"`
+	Description string                    `yaml:"description,omitempty"`
+	Env         map[string]string         `yaml:"env,omitempty"`
+	Platforms   map[string]PlatformConfig `yaml:"platforms,omitempty"`
+	CreatedAt   string                    `yaml:"created_at,omitempty"`
 }
 
 // PlatformConfig allows OS-specific overrides for dependencies or resources
@@ -63,4 +72,3 @@ func (c *Config) GetDependencies() []string {
 	// 3. Default fallback
 	return []string{}
 }
-
