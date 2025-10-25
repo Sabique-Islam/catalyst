@@ -73,7 +73,7 @@ func (c *Config) GetDependencies() []string {
 
 	// 3. Backward compatibility: check for "macos" if osKey is "darwin"
 	if osKey == "darwin" {
-		if deps, ok := c.Dependencies["macos"]; ok {
+		if deps, ok := c.Dependencies["darwin"]; ok {
 			return deps
 		}
 	}
