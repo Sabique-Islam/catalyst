@@ -6,14 +6,14 @@ package cmd
 import (
 	"fmt"
 
-	build "github.com/Sabique-Islam/catalyst/internal/build"
+	install "github.com/Sabique-Islam/catalyst/internal/install"
 	config "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/spf13/cobra"
 )
 
-var buildCmd = &cobra.Command{
-	Use:   "build",
-	Short: "Install dependencies and build the project",
+var installCmd = &cobra.Command{
+	Use:   "install",
+	Short: "Install dependencies required by the project",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Load config
 		cfg, err := config.LoadConfig("catalyst.yml")
@@ -21,16 +21,16 @@ var buildCmd = &cobra.Command{
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Install dependencies using internal/build (auto-detects OS)
-		if err := build.Install(cfg.Dependencies); err != nil {
+		// Install dependencies using internal/install (auto-detects OS)
+		if err := install.Install(cfg.Dependencies); err != nil {
 			return fmt.Errorf("installation failed: %w", err)
 		}
 
-		fmt.Println("Build complete")
+		fmt.Println("install complete")
 		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(buildCmd)
+	rootCmd.AddCommand(installCmd)
 }
