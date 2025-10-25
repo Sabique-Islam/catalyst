@@ -226,9 +226,9 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 		fmt.Println("Setting up dependencies for all platforms...")
 
 		allOsDeps := map[string][]string{
-			"darwin":  {"ncurses", "jansson", "sqlite3", "curl"},
-			"linux":   {"ncurses", "jansson", "sqlite3", "curl"},
-			"windows": {"ncurses", "jansson", "sqlite3", "curl"},
+			"darwin":  {"ncurses", "jansson", "sqlite3", "curl", "openmp"},
+			"linux":   {"ncurses", "jansson", "sqlite3", "curl", "openmp"},
+			"windows": {"ncurses", "jansson", "sqlite3", "curl", "openmp"},
 		}
 		includes := []string{}
 

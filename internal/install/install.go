@@ -30,10 +30,10 @@ type WindowsIssuesDatabase struct {
 
 // WindowsPackageIssue represents a known issue with a package on Windows
 type WindowsPackageIssue struct {
-	PackageName  string `json:"package_name"`
-	DisplayName  string `json:"display_name"`
-	Issue        string `json:"issue"`
-	Alternative  string `json:"alternative"`
+	PackageName   string `json:"package_name"`
+	DisplayName   string `json:"display_name"`
+	Issue         string `json:"issue"`
+	Alternative   string `json:"alternative"`
 	WorkaroundURL string `json:"workaround_url"`
 }
 
@@ -364,6 +364,12 @@ func generateLinkingFlags(dependencies []string) []string {
 		// Threading
 		"pthread": "pthread",
 
+		// OpenMP (parallel computing)
+		"openmp":  "gomp",
+		"libomp":  "omp",
+		"libgomp": "gomp",
+		"omp":     "omp",
+
 		// Networking
 		"curl":                 "curl",
 		"libcurl":              "curl",
@@ -510,7 +516,8 @@ func installPackage(pkg string) error {
 		archPkg := mapToArchPackage(pkg)
 		cmd = exec.Command("sudo", "pacman", "-S", "--noconfirm", archPkg)
 	case "apt":
-		cmd = exec.Command("sudo", "apt-get", "install", "-y", pkg)
+		debPkg := mapToDebianPackage(pkg)
+		cmd = exec.Command("sudo", "apt-get", "install", "-y", debPkg)
 	case "brew":
 		cmd = exec.Command("brew", "install", pkg)
 	case "yum":
@@ -577,6 +584,28 @@ func installPackage(pkg string) error {
 	return nil
 }
 
+func mapToDebianPackage(pkg string) string {
+	// Map common package names to Debian/Ubuntu equivalents
+	debianMap := map[string]string{
+		"gcc":                  "gcc",
+		"make":                 "make",
+		"build-essential":      "build-essential",
+		"libcurl4-openssl-dev": "libcurl4-openssl-dev",
+		"libjansson-dev":       "libjansson-dev",
+		"libssl-dev":           "libssl-dev",
+		"pkg-config":           "pkg-config",
+		"openmp":               "libomp-dev",
+		"libomp":               "libomp-dev",
+		"libgomp":              "libgomp1-dev",
+		"libgomp-dev":          "libgomp1-dev",
+	}
+
+	if debPkg, exists := debianMap[pkg]; exists {
+		return debPkg
+	}
+	return pkg // Return original if no mapping found
+}
+
 func mapToArchPackage(pkg string) string {
 	// Map common package names to Arch equivalents
 	archMap := map[string]string{
@@ -587,6 +616,10 @@ func mapToArchPackage(pkg string) string {
 		"libjansson-dev":       "jansson",
 		"libssl-dev":           "openssl",
 		"pkg-config":           "pkgconf",
+		"openmp":               "gcc-libs",
+		"libomp":               "gcc-libs",
+		"libgomp":              "gcc-libs",
+		"libgomp-dev":          "gcc-libs",
 	}
 
 	if archPkg, exists := archMap[pkg]; exists {
@@ -617,6 +650,10 @@ func mapToWindowsPackage(pkg string, pkgManager string) string {
 			"sqlite3":              "sqlite",
 			"zlib":                 "zlib",
 			"pkg-config":           "pkgconfiglite",
+			"openmp":               "mingw",
+			"libomp":               "mingw",
+			"libgomp":              "mingw",
+			"libgomp-dev":          "mingw",
 		}
 	case "winget":
 		pkgMap = map[string]string{
@@ -632,18 +669,26 @@ func mapToWindowsPackage(pkg string, pkgManager string) string {
 			"nodejs":               "OpenJS.NodeJS",
 			"sqlite":               "SQLite.SQLite",
 			"sqlite3":              "SQLite.SQLite",
+			"openmp":               "MSYS2.MSYS2",
+			"libomp":               "MSYS2.MSYS2",
+			"libgomp":              "MSYS2.MSYS2",
+			"libgomp-dev":          "MSYS2.MSYS2",
 		}
 	case "scoop":
 		pkgMap = map[string]string{
-			"gcc":     "gcc",
-			"make":    "make",
-			"curl":    "curl",
-			"git":     "git",
-			"cmake":   "cmake",
-			"python":  "python",
-			"nodejs":  "nodejs",
-			"sqlite":  "sqlite3",
-			"sqlite3": "sqlite3",
+			"gcc":         "gcc",
+			"make":        "make",
+			"curl":        "curl",
+			"git":         "git",
+			"cmake":       "cmake",
+			"python":      "python",
+			"nodejs":      "nodejs",
+			"sqlite":      "sqlite3",
+			"sqlite3":     "sqlite3",
+			"openmp":      "gcc",
+			"libomp":      "gcc",
+			"libgomp":     "gcc",
+			"libgomp-dev": "gcc",
 		}
 	default:
 		return pkg
@@ -660,7 +705,7 @@ func isLibraryPackage(pkg string) bool {
 	// List of known library packages that need linking
 	knownLibraries := []string{
 		"curl", "jansson", "ssl", "crypto", "sqlite", "sqlite3", "pthread", "m", "z", "dl", "rt",
-		"openssl", "zlib", "pcre", "glib", "gtk", "qt", "boost",
+		"openssl", "zlib", "pcre", "glib", "gtk", "qt", "boost", "gomp", "omp", "openmp",
 	}
 
 	pkgLower := strings.ToLower(pkg)
@@ -686,61 +731,8 @@ func isLibraryPackage(pkg string) bool {
 	return false
 }
 
-// extractLibraryName extracts the library name for linking from package name
-func extractLibraryName(pkg string) string {
-	// Handle common package name to library name mappings
-	libMappings := map[string]string{
-		"curl":                 "curl",
-		"jansson":              "jansson",
-		"sqlite":               "sqlite3",
-		"libssl-dev":           "ssl",
-		"libcrypto-dev":        "crypto",
-		"libcurl4-openssl-dev": "curl",
-		"libjansson-dev":       "jansson",
-		"libsqlite3-dev":       "sqlite3",
-		"sqlite3":              "sqlite3",
-		"pthread":              "pthread",
-		"m":                    "m",
-		"ws2_32.lib":           "ws2_32",
-		"user32.lib":           "user32",
-		"kernel32.lib":         "kernel32",
-		"openssl":              "ssl",
-		"zlib":                 "z",
-	}
-
-	// Direct mapping
-	if libName, exists := libMappings[pkg]; exists {
-		return libName
-	}
-
-	// Extract from lib*-dev pattern
-	if strings.HasPrefix(pkg, "lib") && strings.HasSuffix(pkg, "-dev") {
-		return pkg[3 : len(pkg)-4] // Remove "lib" prefix and "-dev" suffix
-	}
-
-	// Extract from *.lib pattern
-	if strings.HasSuffix(pkg, ".lib") {
-		return pkg[:len(pkg)-4] // Remove ".lib" suffix
-	}
-
-	// For simple library names, use as-is
-	if isSimpleLibrary(pkg) {
-		return pkg
-	}
-
-	return ""
-}
-
-// isSimpleLibrary checks if this is a simple library name that can be used directly
-func isSimpleLibrary(pkg string) bool {
-	simpleLibs := []string{"pthread", "m", "z", "dl", "ssl", "crypto", "curl", "jansson", "sqlite3"}
-	for _, lib := range simpleLibs {
-		if pkg == lib {
-			return true
-		}
-	}
-	return false
-}
+// Note: helper functions for extracting simple library names were removed because they were unused.
+// If library name extraction is needed in the future, reintroduce a focused helper here.
 
 // NOTE: Package compatibility information is now loaded from the embedded
 // JSON file `windows_issues.json`. See loadWindowsIssuesDB() and
@@ -765,10 +757,6 @@ func checkWindowsPackageCompatibility(pkg string) {
 				found = true
 			}
 		}
-	}
-
-	if !found {
-		return
 	}
 
 	fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
@@ -859,6 +847,10 @@ func mapToMSYS2Package(pkg string) string {
 		"libssl-dev":           "mingw-w64-ucrt-x86_64-openssl",
 		"ncurses":              "mingw-w64-ucrt-x86_64-ncurses",
 		"libncurses-dev":       "mingw-w64-ucrt-x86_64-ncurses",
+		"openmp":               "mingw-w64-ucrt-x86_64-openmp",
+		"libomp":               "mingw-w64-ucrt-x86_64-openmp",
+		"libgomp":              "mingw-w64-ucrt-x86_64-openmp",
+		"libgomp-dev":          "mingw-w64-ucrt-x86_64-openmp",
 	}
 
 	if msys2Pkg, exists := msys2Map[pkg]; exists {
