@@ -224,17 +224,32 @@ func mapToArchPackage(pkg string) string {
 
 // isLibraryPackage checks if a package is a library that needs linking
 func isLibraryPackage(pkg string) bool {
-	// Common library patterns
-	libraryPatterns := []string{
-		"lib", "-dev", ".lib", "pthread", "m", "ssl", "crypto", "curl", "sqlite", "z", "dl",
+	// List of known library packages that need linking
+	knownLibraries := []string{
+		"curl", "jansson", "ssl", "crypto", "sqlite3", "pthread", "m", "z", "dl", "rt",
+		"openssl", "zlib", "pcre", "glib", "gtk", "qt", "boost",
 	}
 
 	pkgLower := strings.ToLower(pkg)
+
+	// Check direct matches
+	for _, lib := range knownLibraries {
+		if pkgLower == lib {
+			return true
+		}
+	}
+
+	// Check common library patterns
+	libraryPatterns := []string{
+		"lib", "-dev", ".lib",
+	}
+
 	for _, pattern := range libraryPatterns {
 		if strings.Contains(pkgLower, pattern) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -242,15 +257,21 @@ func isLibraryPackage(pkg string) bool {
 func extractLibraryName(pkg string) string {
 	// Handle common package name to library name mappings
 	libMappings := map[string]string{
+		"curl":                 "curl",
+		"jansson":              "jansson",
 		"libssl-dev":           "ssl",
 		"libcrypto-dev":        "crypto",
 		"libcurl4-openssl-dev": "curl",
+		"libjansson-dev":       "jansson",
 		"libsqlite3-dev":       "sqlite3",
 		"pthread":              "pthread",
 		"m":                    "m",
 		"ws2_32.lib":           "ws2_32",
 		"user32.lib":           "user32",
 		"kernel32.lib":         "kernel32",
+		"openssl":              "ssl",
+		"sqlite3":              "sqlite3",
+		"zlib":                 "z",
 	}
 
 	// Direct mapping
@@ -278,7 +299,7 @@ func extractLibraryName(pkg string) string {
 
 // isSimpleLibrary checks if this is a simple library name that can be used directly
 func isSimpleLibrary(pkg string) bool {
-	simpleLibs := []string{"pthread", "m", "z", "dl", "ssl", "crypto", "curl", "sqlite3"}
+	simpleLibs := []string{"pthread", "m", "z", "dl", "ssl", "crypto", "curl", "jansson", "sqlite3"}
 	for _, lib := range simpleLibs {
 		if pkg == lib {
 			return true
