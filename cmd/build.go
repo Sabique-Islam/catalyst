@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/Sabique-Islam/catalyst/internal/build"
+	compile "github.com/Sabique-Islam/catalyst/internal/compile"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +40,7 @@ Example:
 		}
 
 		// 4️⃣ Compile the C/C++ sources
-		if err := build.CompileC(sourceFiles, output, flags); err != nil {
+		if err := compile.CompileC(sourceFiles, output, flags); err != nil {
 			return err
 		}
 
