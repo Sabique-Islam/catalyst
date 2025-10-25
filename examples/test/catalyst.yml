@@ -1,0 +1,15 @@
+project_name: openmp
+sources:
+    - src/program.c
+output: openmp
+dependencies:
+    darwin:
+        - libomp
+    linux:
+        - libomp-dev
+    windows:
+        - llvm
+includes:
+    - stdio.h
+    - omp.h
+created_at: "2025-10-26T04:40:35+05:30"
