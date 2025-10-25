@@ -32,14 +32,49 @@ func Install(dependencies map[string][]string) error {
 
     switch osType {
     case "linux":
-        args := append([]string{"install", "-y"}, deps...)
-        installCmd = exec.Command("sudo", append([]string{"apt-get"}, args...)...)
-    case "darwin":
+				pkgMgr, err := detectLinuxPackageManager()
+        if err != nil {
+            return err
+        }
+
+        var args []string
+        switch pkgMgr {
+        case "apt-get":
+            args = append([]string{"install", "-y"}, deps...)
+            err = runCommand("sudo", append([]string{"apt-get"}, args...)...)
+        case "dnf", "yum":
+            args = append([]string{"install", "-y"}, deps...)
+            err = runCommand("sudo", append([]string{pkgMgr}, args...)...)
+        case "pacman":
+            args = append([]string{"-S", "--noconfirm"}, deps...)
+            err = runCommand("sudo", append([]string{"pacman"}, args...)...)
+        case "zypper":
+            args = append([]string{"install", "-y"}, deps...)
+            err = runCommand("sudo", append([]string{"zypper"}, args...)...)
+        }
+
+        if err != nil {
+            return fmt.Errorf("failed installing with %s: %w", pkgMgr, err)
+        }
+
+		case "darwin":
+        if _, err := exec.LookPath("brew"); err != nil {
+            return errors.New("Homebrew not found — install it from https://brew.sh/")
+        }
         args := append([]string{"install"}, deps...)
-        installCmd = exec.Command("brew", args...)
+        if err := runCommand("brew", args...); err != nil {
+            return fmt.Errorf("brew install failed: %w", err)
+        }
+
     case "windows":
-        args := append([]string{"install"}, deps...)
-        installCmd = exec.Command("choco", args...)
+        if _, err := exec.LookPath("choco"); err != nil {
+            return errors.New("Chocolatey not found — install it from https://chocolatey.org/install")
+        }
+        args := append([]string{"install", "-y"}, deps...)
+        if err := runCommand("choco", args...); err != nil {
+            return fmt.Errorf("choco install failed: %w", err)
+        }
+
     default:
         return fmt.Errorf("unsupported OS: %s", osType)
     }
