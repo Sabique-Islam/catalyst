@@ -6,8 +6,8 @@ package cmd
 import (
 	"fmt"
 
-	core "github.com/Sabique-Islam/catalyst/internal/config"
-	"github.com/Sabique-Islam/catalyst/internal/build"
+	build "github.com/Sabique-Islam/catalyst/internal/build"
+	config "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -21,15 +21,12 @@ var buildCmd = &cobra.Command{
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Get OS-specific dependencies
-		deps := cfg.GetDependencies()
-
-		// Install dependencies using internal/build
-		if err := build.Install(deps); err != nil {
+		// Install dependencies using internal/build (auto-detects OS)
+		if err := build.Install(cfg.Dependencies); err != nil {
 			return fmt.Errorf("installation failed: %w", err)
 		}
 
-		fmt.Println("✅ Build complete")
+		fmt.Println("Build complete")
 		return nil
 	},
 }
