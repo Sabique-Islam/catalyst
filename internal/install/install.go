@@ -144,32 +144,82 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 	return libFlags, nil
 }
 
-// installPackage installs a single package
-func installPackage(pkg string) error {
-	// Skip installation for system libraries that are built-in
-	if isSystemLibrary(pkg) {
-		fmt.Printf("Skipping installation of system library: %s\n", pkg)
-		return nil
+func getPackageManager() string {
+	// Check for different package managers
+	if _, err := exec.LookPath("pacman"); err == nil {
+		return "pacman"
 	}
-	return Install([]string{pkg})
+	if _, err := exec.LookPath("apt-get"); err == nil {
+		return "apt"
+	}
+	if _, err := exec.LookPath("yum"); err == nil {
+		return "yum"
+	}
+	if _, err := exec.LookPath("dnf"); err == nil {
+		return "dnf"
+	}
+	if _, err := exec.LookPath("brew"); err == nil {
+		return "brew"
+	}
+	return "unknown"
 }
 
-// isSystemLibrary checks if a package is a system library that doesn't need installation
-func isSystemLibrary(pkg string) bool {
-	systemLibs := []string{
-		"m",       // Math library (built into glibc)
-		"pthread", // POSIX threads (built into glibc on modern systems)
-		"dl",      // Dynamic loading (built into glibc)
-		"c",       // C standard library
-		"rt",      // POSIX real-time extensions
-	}
+// installPackage installs a single package
+func installPackage(pkg string) error {
+	var cmd *exec.Cmd
 
-	for _, lib := range systemLibs {
-		if pkg == lib {
-			return true
+	// Skip system libraries that don't need installation
+	systemLibs := []string{"m", "pthread", "dl", "rt"}
+	for _, sysLib := range systemLibs {
+		if pkg == sysLib {
+			fmt.Printf("Skipping installation of system library: %s\n", pkg)
+			return nil
 		}
 	}
-	return false
+
+	pkgManager := getPackageManager()
+
+	switch pkgManager {
+	case "pacman":
+		// Arch Linux package names
+		archPkg := mapToArchPackage(pkg)
+		cmd = exec.Command("sudo", "pacman", "-S", "--noconfirm", archPkg)
+	case "apt":
+		cmd = exec.Command("sudo", "apt-get", "install", "-y", pkg)
+	case "brew":
+		cmd = exec.Command("brew", "install", pkg)
+	case "yum":
+		cmd = exec.Command("sudo", "yum", "install", "-y", pkg)
+	case "dnf":
+		cmd = exec.Command("sudo", "dnf", "install", "-y", pkg)
+	default:
+		return fmt.Errorf("unsupported package manager or package manager not found")
+	}
+
+	fmt.Printf("Installing %s with %s...\n", pkg, pkgManager)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed installing with %s: %s\nOutput: %s", pkgManager, err, string(output))
+	}
+	return nil
+}
+
+func mapToArchPackage(pkg string) string {
+	// Map common package names to Arch equivalents
+	archMap := map[string]string{
+		"gcc":                  "gcc",
+		"make":                 "make",
+		"build-essential":      "base-devel",
+		"libcurl4-openssl-dev": "curl",
+		"libjansson-dev":       "jansson",
+		"libssl-dev":           "openssl",
+		"pkg-config":           "pkgconf",
+	}
+
+	if archPkg, exists := archMap[pkg]; exists {
+		return archPkg
+	}
+	return pkg // Return original if no mapping found
 }
 
 // isLibraryPackage checks if a package is a library that needs linking
