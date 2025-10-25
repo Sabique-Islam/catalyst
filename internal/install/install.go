@@ -1,6 +1,8 @@
 package install
 
 import (
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +16,60 @@ import (
 
 	config "github.com/Sabique-Islam/catalyst/internal/config"
 )
+
+//go:embed windows_issues.json
+var windowsIssuesJSON []byte
+
+// WindowsIssuesDatabase represents the JSON structure
+type WindowsIssuesDatabase struct {
+	Version     string                         `json:"version"`
+	LastUpdated string                         `json:"last_updated"`
+	Description string                         `json:"description"`
+	Issues      map[string]WindowsPackageIssue `json:"issues"`
+}
+
+// WindowsPackageIssue represents a known issue with a package on Windows
+type WindowsPackageIssue struct {
+	PackageName  string `json:"package_name"`
+	DisplayName  string `json:"display_name"`
+	Issue        string `json:"issue"`
+	Alternative  string `json:"alternative"`
+	WorkaroundURL string `json:"workaround_url"`
+}
+
+var issuesDB *WindowsIssuesDatabase
+
+// loadWindowsIssuesDB loads the Windows issues database from embedded JSON
+func loadWindowsIssuesDB() (*WindowsIssuesDatabase, error) {
+	if issuesDB != nil {
+		return issuesDB, nil
+	}
+
+	var db WindowsIssuesDatabase
+	if err := json.Unmarshal(windowsIssuesJSON, &db); err != nil {
+		return nil, fmt.Errorf("failed to parse windows_issues.json: %w", err)
+	}
+
+	issuesDB = &db
+	return issuesDB, nil
+}
+
+// getWindowsPackageIssue retrieves issue information for a package (case-insensitive)
+func getWindowsPackageIssue(packageName string) (*WindowsPackageIssue, bool) {
+	db, err := loadWindowsIssuesDB()
+	if err != nil {
+		fmt.Printf("Warning: Failed to load Windows issues database: %v\n", err)
+		return nil, false
+	}
+
+	pkgLower := strings.ToLower(packageName)
+	for key, issue := range db.Issues {
+		if strings.ToLower(key) == pkgLower {
+			return &issue, true
+		}
+	}
+	return nil, false
+}
 
 // detectLinuxPackageManager tries to find a supported package manager on Linux.
 func detectLinuxPackageManager() (string, error) {
@@ -610,84 +666,28 @@ func isSimpleLibrary(pkg string) bool {
 	return false
 }
 
-// WindowsPackageIssue represents known issues with packages on Windows
-type WindowsPackageIssue struct {
-	PackageName  string
-	Issue        string
-	Alternative  string
-	WorkaroundURL string
-}
-
-// getWindowsPackageIssues returns a map of packages with known Windows compatibility issues
-func getWindowsPackageIssues() map[string]WindowsPackageIssue {
-	return map[string]WindowsPackageIssue{
-		"ncurses": {
-			PackageName:  "ncurses",
-			Issue:        "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
-			Alternative:  "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
-			WorkaroundURL: "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support.",
-		},
-		"libncurses-dev": {
-			PackageName:  "ncurses",
-			Issue:        "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
-			Alternative:  "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
-			WorkaroundURL: "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support.",
-		},
-		"x11": {
-			PackageName:  "X11",
-			Issue:        "X11 (X Window System) is not available on Windows natively.",
-			Alternative:  "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
-			WorkaroundURL: "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt.",
-		},
-		"libx11-dev": {
-			PackageName:  "X11",
-			Issue:        "X11 (X Window System) is not available on Windows natively.",
-			Alternative:  "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
-			WorkaroundURL: "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt.",
-		},
-		"gtk": {
-			PackageName:  "GTK",
-			Issue:        "GTK has limited Windows support and requires significant setup.",
-			Alternative:  "Win32 API, Qt, or wxWidgets for better Windows integration",
-			WorkaroundURL: "Consider using cross-platform frameworks like Qt or Electron for consistent GUI across platforms.",
-		},
-		"pulseaudio": {
-			PackageName:  "PulseAudio",
-			Issue:        "PulseAudio is not natively supported on Windows.",
-			Alternative:  "PortAudio or Windows Audio Session API (WASAPI)",
-			WorkaroundURL: "Use PortAudio for cross-platform audio support.",
-		},
-		"alsa": {
-			PackageName:  "ALSA",
-			Issue:        "ALSA (Advanced Linux Sound Architecture) is Linux-specific.",
-			Alternative:  "PortAudio or Windows Audio APIs (WASAPI, DirectSound)",
-			WorkaroundURL: "Use PortAudio library for cross-platform audio handling.",
-		},
-	}
-}
-
 // checkWindowsPackageCompatibility checks if a package has known Windows issues and warns the user
 func checkWindowsPackageCompatibility(pkg string) {
 	if runtime.GOOS != "windows" {
 		return
 	}
 	
-	issues := getWindowsPackageIssues()
-	pkgLower := strings.ToLower(pkg)
-	
-	if issue, exists := issues[pkgLower]; exists {
-		fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
-		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-		fmt.Printf("Package: %s\n", issue.PackageName)
-		fmt.Printf("Issue: %s\n\n", issue.Issue)
-		fmt.Printf("💡 Suggestion:\n")
-		fmt.Printf("   %s\n\n", issue.Alternative)
-		if issue.WorkaroundURL != "" {
-			fmt.Printf("📖 More Info:\n")
-			fmt.Printf("   %s\n", issue.WorkaroundURL)
-		}
-		fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+	issue, exists := getWindowsPackageIssue(pkg)
+	if !exists {
+		return
 	}
+	
+	fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	fmt.Printf("Package: %s\n", issue.DisplayName)
+	fmt.Printf("Issue: %s\n\n", issue.Issue)
+	fmt.Printf("💡 Suggestion:\n")
+	fmt.Printf("   %s\n\n", issue.Alternative)
+	if issue.WorkaroundURL != "" {
+		fmt.Printf("📖 More Info:\n")
+		fmt.Printf("   %s\n", issue.WorkaroundURL)
+	}
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 }
 
 // shouldUseMSYS2Pacman checks if a package should be installed via MSYS2 pacman instead of winget

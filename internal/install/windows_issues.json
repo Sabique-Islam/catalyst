@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2025-10-26",
+  "description": "Database of known Windows compatibility issues for C/C++ libraries",
+  "issues": {
+    "ncurses": {
+      "package_name": "ncurses",
+      "display_name": "NCurses",
+      "issue": "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+      "alternative": "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+      "workaround_url": "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support."
+    },
+    "libncurses-dev": {
+      "package_name": "ncurses",
+      "display_name": "NCurses",
+      "issue": "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+      "alternative": "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+      "workaround_url": "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support."
+    },
+    "x11": {
+      "package_name": "x11",
+      "display_name": "X11",
+      "issue": "X11 (X Window System) is not available on Windows natively.",
+      "alternative": "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+      "workaround_url": "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt."
+    },
+    "libx11-dev": {
+      "package_name": "x11",
+      "display_name": "X11",
+      "issue": "X11 (X Window System) is not available on Windows natively.",
+      "alternative": "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+      "workaround_url": "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt."
+    },
+    "gtk": {
+      "package_name": "gtk",
+      "display_name": "GTK",
+      "issue": "GTK has limited Windows support and requires significant setup.",
+      "alternative": "Win32 API, Qt, or wxWidgets for better Windows integration",
+      "workaround_url": "Consider using cross-platform frameworks like Qt or Electron for consistent GUI across platforms."
+    },
+    "pulseaudio": {
+      "package_name": "pulseaudio",
+      "display_name": "PulseAudio",
+      "issue": "PulseAudio is not natively supported on Windows.",
+      "alternative": "PortAudio or Windows Audio Session API (WASAPI)",
+      "workaround_url": "Use PortAudio for cross-platform audio support."
+    },
+    "alsa": {
+      "package_name": "alsa",
+      "display_name": "ALSA",
+      "issue": "ALSA (Advanced Linux Sound Architecture) is Linux-specific.",
+      "alternative": "PortAudio or Windows Audio APIs (WASAPI, DirectSound)",
+      "workaround_url": "Use PortAudio library for cross-platform audio handling."
+    }
+  }
+}
