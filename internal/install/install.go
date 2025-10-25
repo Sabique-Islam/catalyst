@@ -29,7 +29,6 @@ func Install(dependencies []string) error {
 	}
 
 	osType := runtime.GOOS
-	fmt.Printf("Installing dependencies for %s: %v\n", osType, dependencies)
 
 	switch osType {
 	case "linux":
@@ -42,15 +41,19 @@ func Install(dependencies []string) error {
 		switch pkgMgr {
 		case "apt-get":
 			args = append([]string{"install", "-y"}, dependencies...)
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
 			err = runCommand("sudo", append([]string{"apt-get"}, args...)...)
 		case "dnf", "yum":
 			args = append([]string{"install", "-y"}, dependencies...)
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
 			err = runCommand("sudo", append([]string{pkgMgr}, args...)...)
 		case "pacman":
 			args = append([]string{"-S", "--noconfirm"}, dependencies...)
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
 			err = runCommand("sudo", append([]string{"pacman"}, args...)...)
 		case "zypper":
 			args = append([]string{"install", "-y"}, dependencies...)
+			fmt.Printf("Using package manager: %s\n", pkgMgr)
 			err = runCommand("sudo", append([]string{"zypper"}, args...)...)
 		}
 
@@ -62,6 +65,7 @@ func Install(dependencies []string) error {
 		if _, err := exec.LookPath("brew"); err != nil {
 			return errors.New("homebrew not found - install it from https://brew.sh/")
 		}
+		fmt.Println("Using package manager: brew")
 		args := append([]string{"install"}, dependencies...)
 		if err := runCommand("brew", args...); err != nil {
 			return fmt.Errorf("brew install failed: %w", err)
@@ -71,6 +75,7 @@ func Install(dependencies []string) error {
 		if _, err := exec.LookPath("choco"); err != nil {
 			return errors.New("chocolatey not found - install it from https://chocolatey.org/install")
 		}
+		fmt.Println("Using package manager: choco")
 		args := append([]string{"install", "-y"}, dependencies...)
 		if err := runCommand("choco", args...); err != nil {
 			return fmt.Errorf("choco install failed: %w", err)
@@ -80,7 +85,6 @@ func Install(dependencies []string) error {
 		return fmt.Errorf("unsupported OS: %s", osType)
 	}
 
-	fmt.Println("All dependencies installed successfully.")
 	return nil
 }
 
@@ -100,11 +104,14 @@ func InstallDependencies() error {
 	}
 
 	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
+	fmt.Println()
+
 	if err := Install(deps); err != nil {
 		return fmt.Errorf("installation failed: %w", err)
 	}
 
-	fmt.Println("Dependencies installed")
+	fmt.Println()
+	fmt.Println("Dependencies installed successfully!")
 	return nil
 }
 
