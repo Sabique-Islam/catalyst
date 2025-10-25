@@ -1,7 +1,7 @@
 # Catalyst
 
 
-## Problem Staement :
+## Problem Statement :
 
 C programs rely on platform-specific tools, external libraries, and configurations, making them difficult to run across different operating systems.
 Porting from macOS/Linux to Windows (and vice versa) often needs manual setup, dependency fixes, and code changes.
