@@ -1,0 +1,22 @@
+project_name: "task-manager"
+description: "A simple task manager with SQLite database"
+sources:
+  - "program.c"
+output: "task-manager"
+
+dependencies:
+  linux:
+    - "gcc"
+    - "libsqlite3-dev"
+  darwin:
+    - "gcc"
+    - "sqlite"
+  windows:
+    - "msys2"
+    - "sqlite3"
+
+flags:
+  - -lsqlite3
+
+includes:
+  - "sqlite3.h"

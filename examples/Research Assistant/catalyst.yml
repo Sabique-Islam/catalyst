@@ -1,0 +1,27 @@
+project_name: "research-assistant"
+description: "A C program that searches for research papers using Semantic Scholar API"
+sources:
+  - "program.c"
+output: "research-assistant"
+
+dependencies:
+  linux:
+    - "gcc"
+    - "libcurl4-openssl-dev"
+    - "libjansson-dev"
+  darwin:
+    - "gcc"
+    - "curl"
+    - "jansson"
+  windows:
+    - "msys2"
+    - "curl"
+    - "jansson" 
+
+flags:
+  - -lcurl
+  - -ljansson
+
+includes:
+  - "curl/curl.h"
+  - "jansson.h"

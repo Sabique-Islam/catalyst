@@ -5,6 +5,13 @@ output: arc
 dependencies:
     darwin:
         - sqlite
+    linux:
+        - libsqlite3-dev
+    windows:
+        - msys2
+        - sqlite3
+flags:
+    - -lsqlite3
 includes:
     - stdio.h
     - sqlite3.h

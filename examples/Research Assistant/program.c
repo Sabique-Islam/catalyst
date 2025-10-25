@@ -87,25 +87,40 @@ void search_papers(const char *keyword) {
     curl_global_cleanup();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
     char keyword[256];
 
-    printf("Enter keyword to search for research papers: ");
-    if(fgets(keyword, sizeof(keyword), stdin)) {
-        // Remove trailing newline if present
-        size_t len = strlen(keyword);
-        if(len > 0 && keyword[len - 1] == '\n') {
-            keyword[len - 1] = '\0';
+    // Check if keyword was provided as command-line argument
+    if(argc > 1) {
+        // Concatenate all arguments into one search string
+        keyword[0] = '\0';
+        for(int i = 1; i < argc; i++) {
+            if(i > 1) strcat(keyword, " ");
+            strncat(keyword, argv[i], sizeof(keyword) - strlen(keyword) - 1);
         }
-
-        if(strlen(keyword) == 0) {
-            printf("No keyword entered. Exiting.\n");
-            return 1;
-        }
-
+        
+        printf("Searching for: %s\n", keyword);
         search_papers(keyword);
     } else {
-        printf("Failed to read input.\n");
+        // Interactive mode - prompt user for input
+        printf("Enter keyword to search for research papers: ");
+        if(fgets(keyword, sizeof(keyword), stdin)) {
+            // Remove trailing newline if present
+            size_t len = strlen(keyword);
+            if(len > 0 && keyword[len - 1] == '\n') {
+                keyword[len - 1] = '\0';
+            }
+
+            if(strlen(keyword) == 0) {
+                printf("No keyword entered. Exiting.\n");
+                return 1;
+            }
+
+            search_papers(keyword);
+        } else {
+            printf("Failed to read input.\n");
+            return 1;
+        }
     }
 
     return 0;
