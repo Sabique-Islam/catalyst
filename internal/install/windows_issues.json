@@ -4,53 +4,291 @@
   "description": "Database of known Windows compatibility issues for C/C++ libraries",
   "issues": {
     "ncurses": {
-      "package_name": "ncurses",
-      "display_name": "NCurses",
-      "issue": "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
-      "alternative": "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
-      "workaround_url": "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support."
+        "package_name": "ncurses",
+        "display_name": "NCurses",
+        "issue": "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+        "alternative": "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+        "workaround_url": "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support."
     },
     "libncurses-dev": {
-      "package_name": "ncurses",
-      "display_name": "NCurses",
-      "issue": "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
-      "alternative": "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
-      "workaround_url": "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support."
+        "package_name": "ncurses",
+        "display_name": "NCurses",
+        "issue": "ncurses has limited Windows support. The MSYS2 port has incomplete symbol exports and may cause linking errors.",
+        "alternative": "PDCurses (Public Domain Curses) - a Windows-compatible curses implementation",
+        "workaround_url": "Consider using PDCurses or running your application in WSL (Windows Subsystem for Linux) for full ncurses support."
     },
     "x11": {
-      "package_name": "x11",
-      "display_name": "X11",
-      "issue": "X11 (X Window System) is not available on Windows natively.",
-      "alternative": "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
-      "workaround_url": "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt."
+        "package_name": "x11",
+        "display_name": "X11",
+        "issue": "X11 (X Window System) is not available on Windows natively.",
+        "alternative": "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+        "workaround_url": "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt."
     },
     "libx11-dev": {
-      "package_name": "x11",
-      "display_name": "X11",
-      "issue": "X11 (X Window System) is not available on Windows natively.",
-      "alternative": "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
-      "workaround_url": "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt."
+        "package_name": "x11",
+        "display_name": "X11",
+        "issue": "X11 (X Window System) is not available on Windows natively.",
+        "alternative": "Win32 API for Windows GUI, or use WSL with X server (VcXsrv, Xming)",
+        "workaround_url": "For GUI applications, consider cross-platform libraries like SDL2, GLFW, or Qt."
     },
     "gtk": {
-      "package_name": "gtk",
-      "display_name": "GTK",
-      "issue": "GTK has limited Windows support and requires significant setup.",
-      "alternative": "Win32 API, Qt, or wxWidgets for better Windows integration",
-      "workaround_url": "Consider using cross-platform frameworks like Qt or Electron for consistent GUI across platforms."
+        "package_name": "gtk",
+        "display_name": "GTK",
+        "issue": "GTK has limited Windows support and requires significant setup.",
+        "alternative": "Win32 API, Qt, or wxWidgets for better Windows integration",
+        "workaround_url": "Consider using cross-platform frameworks like Qt or Electron for consistent GUI across platforms."
     },
     "pulseaudio": {
-      "package_name": "pulseaudio",
-      "display_name": "PulseAudio",
-      "issue": "PulseAudio is not natively supported on Windows.",
-      "alternative": "PortAudio or Windows Audio Session API (WASAPI)",
-      "workaround_url": "Use PortAudio for cross-platform audio support."
+        "package_name": "pulseaudio",
+        "display_name": "PulseAudio",
+        "issue": "PulseAudio is not natively supported on Windows.",
+        "alternative": "PortAudio or Windows Audio Session API (WASAPI)",
+        "workaround_url": "Use PortAudio for cross-platform audio support."
     },
     "alsa": {
-      "package_name": "alsa",
-      "display_name": "ALSA",
-      "issue": "ALSA (Advanced Linux Sound Architecture) is Linux-specific.",
-      "alternative": "PortAudio or Windows Audio APIs (WASAPI, DirectSound)",
-      "workaround_url": "Use PortAudio library for cross-platform audio handling."
+        "package_name": "alsa",
+        "display_name": "ALSA",
+        "issue": "ALSA (Advanced Linux Sound Architecture) is Linux-specific.",
+        "alternative": "PortAudio or Windows Audio APIs (WASAPI, DirectSound)",
+        "workaround_url": "Use PortAudio library for cross-platform audio handling."
+    },
+    "libudev": {
+        "package_name": "libudev",
+        "display_name": "libudev",
+        "issue": "Depends on Linux device management system (udev).",
+        "alternative": "Windows SetupAPI or WinUSB for device handling.",
+        "workaround_url": "Use WinUSB for USB device enumeration on Windows."
+    },
+    "libdrm": {
+        "package_name": "libdrm",
+        "display_name": "Direct Rendering Manager",
+        "issue": "DRM (Direct Rendering Manager) is Linux kernel-specific.",
+        "alternative": "DirectX or Vulkan for rendering on Windows.",
+        "workaround_url": "Use Vulkan SDK for cross-platform GPU rendering."
+    },
+    "libxrandr": {
+        "package_name": "libxrandr",
+        "display_name": "X RandR",
+        "issue": "Depends on X11 display server, unavailable on Windows.",
+        "alternative": "Use Windows GDI or DirectX for display management.",
+        "workaround_url": "Consider GLFW or SDL2 for portable display control."
+    },
+    "pthread": {
+        "package_name": "pthread",
+        "display_name": "POSIX Threads",
+        "issue": "Windows uses different threading model (Win32).",
+        "alternative": "pthreads-w32 or native Win32 threads.",
+        "workaround_url": "https://sourceware.org/pthreads-win32/"
+    },
+    "termios": {
+        "package_name": "termios",
+        "display_name": "termios",
+        "issue": "Controls UNIX-style terminal I/O; not supported on Windows.",
+        "alternative": "Win32 Console API or libuv abstraction.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/console/"
+    },
+    "inotify": {
+        "package_name": "inotify",
+        "display_name": "inotify",
+        "issue": "Linux-specific file system watcher.",
+        "alternative": "ReadDirectoryChangesW or FileSystemWatcher.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readdirectorychangesw"
+    },
+    "epoll": {
+        "package_name": "epoll",
+        "display_name": "epoll",
+        "issue": "Linux kernel event poll API; no Windows equivalent.",
+        "alternative": "IOCP or select().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports"
+    },
+    "syslog": {
+        "package_name": "syslog",
+        "display_name": "syslog",
+        "issue": "UNIX system logging not available.",
+        "alternative": "Windows Event Log API or ETW.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/eventlog/event-logging"
+    },
+    "readline": {
+        "package_name": "readline",
+        "display_name": "GNU Readline",
+        "issue": "Uses POSIX terminal interfaces; incompatible with Windows console.",
+        "alternative": "libedit or linenoise.",
+        "workaround_url": "https://tiswww.case.edu/php/chet/readline/rltop.html"
+    },
+    "dlfcn": {
+        "package_name": "dlfcn",
+        "display_name": "Dynamic Loading Library",
+        "issue": "dlopen/dlsym not available on Windows.",
+        "alternative": "LoadLibrary() and GetProcAddress().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/"
+    },
+    "sys_socket": {
+        "package_name": "sys/socket.h",
+        "display_name": "Socket API",
+        "issue": "UNIX socket headers differ from Winsock.",
+        "alternative": "Winsock2 API.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-start-page-2"
+    },
+    "sys_wait": {
+        "package_name": "sys/wait.h",
+        "display_name": "wait functions",
+        "issue": "Not available on Windows.",
+        "alternative": "WaitForSingleObject() in Win32 API.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject"
+    },
+    "sys_mman": {
+        "package_name": "sys/mman.h",
+        "display_name": "Memory Mapping",
+        "issue": "Uses POSIX memory mapping APIs.",
+        "alternative": "CreateFileMapping() and MapViewOfFile().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/memory/file-mapping"
+    },
+    "sys_un": {
+        "package_name": "sys/un.h",
+        "display_name": "UNIX Sockets",
+        "issue": "Unavailable on pre-Windows 10.",
+        "alternative": "Named pipes or AF_UNIX sockets on newer Windows.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes"
+    },
+    "mqueue": {
+        "package_name": "mqueue",
+        "display_name": "POSIX Message Queues",
+        "issue": "Not supported on Windows.",
+        "alternative": "Windows message queues or pipes.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes"
+    },
+    "sys_sem": {
+        "package_name": "sys/sem.h",
+        "display_name": "POSIX Semaphores",
+        "issue": "Not natively supported.",
+        "alternative": "CreateSemaphore() in Win32.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createsemaphorew"
+    },
+    "sys_ipc": {
+        "package_name": "sys/ipc.h",
+        "display_name": "System V IPC",
+        "issue": "Not available on Windows.",
+        "alternative": "Named pipes or sockets.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes"
+    },
+    "dirent": {
+        "package_name": "dirent",
+        "display_name": "Directory Entry API",
+        "issue": "Not supported in MSVC by default.",
+        "alternative": "FindFirstFile()/FindNextFile().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilew"
+    },
+    "getopt": {
+        "package_name": "getopt",
+        "display_name": "Getopt",
+        "issue": "Not part of MSVC runtime.",
+        "alternative": "Use getopt for Windows or custom CLI parsers.",
+        "workaround_url": "https://github.com/skandhurkat/Getopt-for-Visual-Studio"
+    },
+    "pthread_mutex": {
+        "package_name": "pthread_mutex",
+        "display_name": "pthread Mutexes",
+        "issue": "Part of pthread library, not supported natively.",
+        "alternative": "CRITICAL_SECTION in Win32.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/sync/critical-section-objects"
+    },
+    "sys_statvfs": {
+        "package_name": "sys/statvfs.h",
+        "display_name": "Filesystem Stats",
+        "issue": "Not available in Windows.",
+        "alternative": "GetDiskFreeSpaceEx().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdiskfreespaceexw"
+    },
+    "sys_time": {
+        "package_name": "sys/time.h",
+        "display_name": "System Time",
+        "issue": "Uses UNIX structures.",
+        "alternative": "GetSystemTimeAsFileTime() or chrono.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/sysinfo/getsystemtimeasfiletime"
+    },
+    "sys_resource": {
+        "package_name": "sys/resource.h",
+        "display_name": "Resource Limits",
+        "issue": "UNIX-specific API.",
+        "alternative": "GetProcessTimes().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes"
+    },
+    "fcntl": {
+        "package_name": "fcntl",
+        "display_name": "fcntl",
+        "issue": "File control calls not supported.",
+        "alternative": "SetFileInformationByHandle().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/"
+    },
+    "syslogd": {
+        "package_name": "syslogd",
+        "display_name": "Syslog Daemon",
+        "issue": "System logging daemon not in Windows.",
+        "alternative": "Windows Event Logging.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/eventlog/event-logging"
+    },
+    "aio": {
+        "package_name": "aio",
+        "display_name": "POSIX Asynchronous I/O",
+        "issue": "Not supported in Windows.",
+        "alternative": "OVERLAPPED I/O.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/fileio/synchronous-and-asynchronous-i-o"
+    },
+    "sys_vfs": {
+        "package_name": "sys/vfs.h",
+        "display_name": "Virtual File System",
+        "issue": "Linux-only API.",
+        "alternative": "GetVolumeInformation().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getvolumeinformationw"
+    },
+    "sys_prctl": {
+        "package_name": "sys/prctl.h",
+        "display_name": "Process Control",
+        "issue": "Linux-specific control operations.",
+        "alternative": "Use Windows process APIs.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/procthread/process-and-thread-functions"
+    },
+    "sys_uio": {
+        "package_name": "sys/uio.h",
+        "display_name": "Scatter/Gather I/O",
+        "issue": "Not present on Windows.",
+        "alternative": "WSASend()/WSARecv().",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsarecv"
+    },
+    "sys_epoll_ctl": {
+        "package_name": "sys/epoll_ctl",
+        "display_name": "Epoll Control",
+        "issue": "Linux-only event polling.",
+        "alternative": "IOCP or select.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports"
+    },
+    "sys_mount": {
+        "package_name": "sys/mount.h",
+        "display_name": "Mount System",
+        "issue": "Linux mount operations not supported.",
+        "alternative": "Volume APIs.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/fileio/volume-management"
+    },
+    "signal": {
+        "package_name": "signal",
+        "display_name": "Signal Handling",
+        "issue": "POSIX signals behave differently on Windows.",
+        "alternative": "SetConsoleCtrlHandler or SEH.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/console/setconsolectrlhandler"
+    },
+    "syslog_h": {
+        "package_name": "syslog.h",
+        "display_name": "Syslog Header",
+        "issue": "Logging facilities unavailable.",
+        "alternative": "Windows Event Log.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/eventlog/event-logging"
+    },
+    "sys_sigqueue": {
+        "package_name": "sys/sigqueue",
+        "display_name": "Signal Queue",
+        "issue": "Not implemented in Windows.",
+        "alternative": "Event objects or message queues.",
+        "workaround_url": "https://learn.microsoft.com/en-us/windows/win32/sync/event-objects"
     }
-  }
+    }
 }
