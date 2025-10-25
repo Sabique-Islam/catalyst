@@ -14,6 +14,30 @@ var PackageDB = map[string]map[string]string{
 		"vcpkg":  "openssl",
 		"choco":  "openssl",
 	},
+	"ssl": {
+		"apt":    "libssl-dev",
+		"dnf":    "openssl-devel",
+		"pacman": "openssl",
+		"brew":   "openssl",
+		"vcpkg":  "openssl",
+		"choco":  "openssl",
+	},
+	"crypto": {
+		"apt":    "libssl-dev",
+		"dnf":    "openssl-devel",
+		"pacman": "openssl",
+		"brew":   "openssl",
+		"vcpkg":  "openssl",
+		"choco":  "openssl",
+	},
+	"curl": {
+		"apt":    "libcurl4-openssl-dev",
+		"dnf":    "libcurl-devel",
+		"pacman": "curl",
+		"brew":   "curl",
+		"vcpkg":  "curl",
+		"choco":  "curl",
+	},
 	"png": {
 		"apt":    "libpng-dev",
 		"dnf":    "libpng-devel",
@@ -30,8 +54,72 @@ var PackageDB = map[string]map[string]string{
 		"vcpkg":  "zlib",
 		"choco":  "zlib",
 	},
+	"sqlite3": {
+		"apt":    "libsqlite3-dev",
+		"dnf":    "sqlite-devel",
+		"pacman": "sqlite",
+		"brew":   "sqlite",
+		"vcpkg":  "sqlite3",
+		"choco":  "sqlite",
+	},
+	"sqlite": {
+		"apt":    "libsqlite3-dev",
+		"dnf":    "sqlite-devel",
+		"pacman": "sqlite",
+		"brew":   "sqlite",
+		"vcpkg":  "sqlite3",
+		"choco":  "sqlite",
+	},
+	"pthread": {
+		"apt":    "", // Built into glibc on Linux
+		"dnf":    "", // Built into glibc on Linux
+		"pacman": "", // Built into glibc on Linux
+		"brew":   "", // Built into macOS
+		"vcpkg":  "pthreads",
+		"choco":  "pthreads",
+	},
+	"jansson": {
+		"apt":    "libjansson-dev",
+		"dnf":    "jansson-devel",
+		"pacman": "jansson",
+		"brew":   "jansson",
+		"vcpkg":  "jansson",
+		"choco":  "jansson",
+	},
+	"readline": {
+		"apt":    "libreadline-dev",
+		"dnf":    "readline-devel",
+		"pacman": "readline",
+		"brew":   "readline",
+		"vcpkg":  "readline",
+		"choco":  "readline",
+	},
+	"ncurses": {
+		"apt":    "libncurses-dev",
+		"dnf":    "ncurses-devel",
+		"pacman": "ncurses",
+		"brew":   "ncurses",
+		"vcpkg":  "ncurses",
+		"choco":  "ncurses",
+	},
+	"pcre": {
+		"apt":    "libpcre3-dev",
+		"dnf":    "pcre-devel",
+		"pacman": "pcre",
+		"brew":   "pcre",
+		"vcpkg":  "pcre",
+		"choco":  "pcre",
+	},
+	"json": {
+		"apt":    "libjansson-dev",
+		"dnf":    "jansson-devel",
+		"pacman": "jansson",
+		"brew":   "jansson",
+		"vcpkg":  "jansson",
+		"choco":  "jansson",
+	},
+	// Standard library headers - no package needed
 	"stdio": {
-		// stdio is part of the C standard library, no separate package needed
 		"apt":    "",
 		"dnf":    "",
 		"pacman": "",
@@ -40,7 +128,6 @@ var PackageDB = map[string]map[string]string{
 		"choco":  "",
 	},
 	"stdlib": {
-		// stdlib is part of the C standard library, no separate package needed
 		"apt":    "",
 		"dnf":    "",
 		"pacman": "",
@@ -49,7 +136,6 @@ var PackageDB = map[string]map[string]string{
 		"choco":  "",
 	},
 	"string": {
-		// string.h is part of the C standard library, no separate package needed
 		"apt":    "",
 		"dnf":    "",
 		"pacman": "",
@@ -58,7 +144,6 @@ var PackageDB = map[string]map[string]string{
 		"choco":  "",
 	},
 	"math": {
-		// math.h is part of the C standard library, but may need -lm flag
 		"apt":    "",
 		"dnf":    "",
 		"pacman": "",
@@ -66,13 +151,85 @@ var PackageDB = map[string]map[string]string{
 		"vcpkg":  "",
 		"choco":  "",
 	},
-	"sqlite3": {
-		"apt":    "libsqlite3-dev",
-		"dnf":    "sqlite-devel",
-		"pacman": "sqlite",
-		"brew":   "sqlite",
-		"vcpkg":  "sqlite3",
-		"choco":  "sqlite",
+	"time": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"ctype": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"assert": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"errno": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"signal": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"stdarg": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"stdbool": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"stdint": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"unistd": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
+	},
+	"fcntl": {
+		"apt":    "",
+		"dnf":    "",
+		"pacman": "",
+		"brew":   "",
+		"vcpkg":  "",
+		"choco":  "",
 	},
 }
 
