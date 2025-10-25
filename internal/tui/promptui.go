@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 
 	core "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/manifoldco/promptui"
@@ -73,6 +74,36 @@ func RunInitWizard() (*core.Config, bool, error) {
 	// If automate is true, the caller will handle scanning and dependency detection
 	// If automate is false, the caller will handle creating manual instructions
 	automate := (idx == 0)
+
+	// If automation is enabled, ask for an optional entry point (main source file)
+	if automate {
+		entryPrompt := promptui.Prompt{
+			Label: "Entry point (path to main source file) — leave blank to auto-scan",
+			Validate: func(input string) error {
+				if input == "" {
+					return nil
+				}
+				// Check file exists
+				if _, err := os.Stat(input); err != nil {
+					return fmt.Errorf("file does not exist: %v", err)
+				}
+				return nil
+			},
+		}
+
+		entry, err := entryPrompt.Run()
+		if err != nil {
+			if err == promptui.ErrInterrupt {
+				return nil, false, fmt.Errorf("operation cancelled by user")
+			}
+			return nil, false, fmt.Errorf("entry point prompt failed: %v", err)
+		}
+
+		if entry != "" {
+			// Set the entry point as the sole source in the config; generator will respect this
+			cfg.Sources = []string{entry}
+		}
+	}
 
 	return cfg, automate, nil
 }

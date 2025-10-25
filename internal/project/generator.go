@@ -96,17 +96,22 @@ func InitializeProject() error {
 		fmt.Println()
 		fmt.Println("Scanning project for dependencies...")
 
-		// Scan for source files
-		sources, err := scanSourceFiles(".")
-		if err != nil {
-			return fmt.Errorf("source file scan failed: %w", err)
-		}
+		// If an entry point/source was provided by the wizard, respect it.
+		if len(config.Sources) == 0 {
+			// Scan for source files
+			sources, err := scanSourceFiles(".")
+			if err != nil {
+				return fmt.Errorf("source file scan failed: %w", err)
+			}
 
-		if len(sources) > 0 {
-			config.Sources = sources
-			fmt.Printf("Found %d source file(s): %v\n", len(sources), sources)
+			if len(sources) > 0 {
+				config.Sources = sources
+				fmt.Printf("Found %d source file(s): %v\n", len(sources), sources)
+			} else {
+				fmt.Println("Warning: No .c or .cpp files found in project")
+			}
 		} else {
-			fmt.Println("Warning: No .c or .cpp files found in project")
+			fmt.Printf("Using specified entry point/source: %v\n", config.Sources)
 		}
 
 		// Set default output name if not set
