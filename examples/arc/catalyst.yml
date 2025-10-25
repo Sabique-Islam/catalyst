@@ -1,0 +1,9 @@
+project_name: arc
+sources:
+    - src/main.c
+dependencies:
+    darwin:
+        - sqlite
+includes:
+    - stdio.h
+    - sqlite3.h

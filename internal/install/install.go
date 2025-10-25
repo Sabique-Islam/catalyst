@@ -233,7 +233,7 @@ func mapToArchPackage(pkg string) string {
 func isLibraryPackage(pkg string) bool {
 	// List of known library packages that need linking
 	knownLibraries := []string{
-		"curl", "jansson", "ssl", "crypto", "sqlite3", "pthread", "m", "z", "dl", "rt",
+		"curl", "jansson", "ssl", "crypto", "sqlite", "sqlite3", "pthread", "m", "z", "dl", "rt",
 		"openssl", "zlib", "pcre", "glib", "gtk", "qt", "boost",
 	}
 
@@ -271,13 +271,14 @@ func extractLibraryName(pkg string) string {
 		"libcurl4-openssl-dev": "curl",
 		"libjansson-dev":       "jansson",
 		"libsqlite3-dev":       "sqlite3",
+		"sqlite":               "sqlite3",
+		"sqlite3":              "sqlite3",
 		"pthread":              "pthread",
 		"m":                    "m",
 		"ws2_32.lib":           "ws2_32",
 		"user32.lib":           "user32",
 		"kernel32.lib":         "kernel32",
 		"openssl":              "ssl",
-		"sqlite3":              "sqlite3",
 		"zlib":                 "z",
 	}
 
