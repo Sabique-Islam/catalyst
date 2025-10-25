@@ -44,24 +44,32 @@ func runInteractiveMenu() error {
 		}
 
 		switch choice {
+		case "Init (Create catalyst.yml)":
+			if err := initCmd.RunE(initCmd, []string{}); err != nil {
+				fmt.Printf("Error: Init failed: %v\n\n", err)
+			}
+		case "Scan (Find dependencies)":
+			if err := scanCmd.RunE(scanCmd, []string{}); err != nil {
+				fmt.Printf("Error: Scan failed: %v\n\n", err)
+			}
+		case "Install (Install dependencies)":
+			if err := installCmd.RunE(installCmd, []string{}); err != nil {
+				fmt.Printf("Error: Install failed: %v\n\n", err)
+			}
 		case "Build":
 			if err := buildCmd.RunE(buildCmd, []string{}); err != nil {
-				fmt.Printf("❌ Build failed: %v\n\n", err)
+				fmt.Printf("Error: Build failed: %v\n\n", err)
 			}
 		case "Run":
 			if err := runCmd.RunE(runCmd, []string{}); err != nil {
-				fmt.Printf("❌ Run failed: %v\n\n", err)
+				fmt.Printf("Error: Run failed: %v\n\n", err)
 			}
 		case "Clean":
 			if err := cleanCmd.RunE(cleanCmd, []string{}); err != nil {
-				fmt.Printf("❌ Clean failed: %v\n\n", err)
-			}
-		case "Init (Create catalyst.yml)":
-			if err := initCmd.RunE(initCmd, []string{}); err != nil {
-				fmt.Printf("❌ Init failed: %v\n\n", err)
+				fmt.Printf("Error: Clean failed: %v\n\n", err)
 			}
 		case "Exit":
-			fmt.Println("👋 Goodbye!")
+			fmt.Println("Goodbye!")
 			return nil
 		default:
 			fmt.Printf("Unknown option: %s\n", choice)
