@@ -3,6 +3,8 @@ package project
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	core "github.com/Sabique-Islam/catalyst/internal/config"
@@ -39,6 +41,41 @@ func GenerateYAML(projectName string, authorName string, license string) (string
 	return string(out), nil
 }
 
+// scanSourceFiles finds all .c and .cpp files in the current directory
+func scanSourceFiles(dir string) ([]string, error) {
+	var sources []string
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip hidden directories and build directories
+		if info.IsDir() {
+			name := filepath.Base(path)
+			if strings.HasPrefix(name, ".") || name == "build" || name == "dist" || name == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Check for C/C++ source files
+		ext := filepath.Ext(path)
+		if ext == ".c" || ext == ".cpp" || ext == ".cc" || ext == ".cxx" {
+			// Use relative path from current directory
+			relPath, err := filepath.Rel(dir, path)
+			if err != nil {
+				return err
+			}
+			sources = append(sources, relPath)
+		}
+
+		return nil
+	})
+
+	return sources, err
+}
+
 // InitializeProject runs the interactive project initialization wizard
 func InitializeProject() error {
 	fmt.Println("==============================================")
@@ -58,6 +95,24 @@ func InitializeProject() error {
 	if automate {
 		fmt.Println()
 		fmt.Println("Scanning project for dependencies...")
+
+		// Scan for source files
+		sources, err := scanSourceFiles(".")
+		if err != nil {
+			return fmt.Errorf("source file scan failed: %w", err)
+		}
+
+		if len(sources) > 0 {
+			config.Sources = sources
+			fmt.Printf("Found %d source file(s): %v\n", len(sources), sources)
+		} else {
+			fmt.Println("Warning: No .c or .cpp files found in project")
+		}
+
+		// Set default output name if not set
+		if config.Output == "" {
+			config.Output = config.ProjectName
+		}
 
 		// Scan for dependencies
 		abstractDeps, err := fetch.ScanDependencies(".")
@@ -173,6 +228,9 @@ func saveConfigWithIncludes(cfg *core.Config, filename string, includes []string
 	// Create a custom structure to include the "includes" field
 	type ConfigWithIncludes struct {
 		ProjectName  string              `yaml:"project_name"`
+		Sources      []string            `yaml:"sources,omitempty"`
+		Output       string              `yaml:"output,omitempty"`
+		Flags        []string            `yaml:"flags,omitempty"`
 		Dependencies map[string][]string `yaml:"dependencies,omitempty"`
 		Includes     []string            `yaml:"includes,omitempty"`
 		Resources    []string            `yaml:"resources,omitempty"`
@@ -180,6 +238,9 @@ func saveConfigWithIncludes(cfg *core.Config, filename string, includes []string
 
 	customCfg := ConfigWithIncludes{
 		ProjectName:  cfg.ProjectName,
+		Sources:      cfg.Sources,
+		Output:       cfg.Output,
+		Flags:        cfg.Flags,
 		Dependencies: cfg.Dependencies,
 		Includes:     includes,
 	}
