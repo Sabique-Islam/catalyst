@@ -18,9 +18,11 @@ type Resource struct {
 // Config is the main project configuration
 type Config struct {
 	ProjectName  string              `yaml:"project_name"`
-	Sources      []string            `yaml:"sources"`
-	Dependencies map[string][]string `yaml:"dependencies"`
-	Resources    []Resource          `yaml:"resources"`
+	Sources      []string            `yaml:"sources,omitempty"`
+	Output       string              `yaml:"output,omitempty"`
+	Flags        []string            `yaml:"flags,omitempty"`
+	Dependencies map[string][]string `yaml:"dependencies,omitempty"`
+	Resources    []Resource          `yaml:"resources,omitempty"`
 	// Optional stuff to add
 	Author      string                    `yaml:"author,omitempty"`
 	Description string                    `yaml:"description,omitempty"`

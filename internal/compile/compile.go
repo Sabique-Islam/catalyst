@@ -56,6 +56,7 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 func BuildProject(args []string) error {
 	var sourceFiles []string
 	var flags []string
+	var output string
 
 	// Check if catalyst.yml exists
 	if _, err := os.Stat("catalyst.yml"); err == nil {
@@ -73,6 +74,18 @@ func BuildProject(args []string) error {
 			sourceFiles = cfg.Sources
 			fmt.Printf("Building from catalyst.yml: %s\n", cfg.ProjectName)
 			fmt.Printf("Source files: %v\n", sourceFiles)
+
+			// Use flags from config
+			if len(cfg.Flags) > 0 {
+				flags = append(flags, cfg.Flags...)
+			}
+
+			// Use output name from config
+			if cfg.Output != "" {
+				output = cfg.Output
+			} else {
+				output = cfg.ProjectName
+			}
 		} else {
 			// Use command-line args
 			for _, arg := range args {
@@ -110,31 +123,48 @@ func BuildProject(args []string) error {
 		}
 	}
 
-	// Determine output binary
-	output := "build/project"
+	// Determine output binary path (always in build/ directory)
+	if output == "" {
+		output = "project"
+	}
+	outputPath := filepath.Join("build", output)
 	if runtime.GOOS == "windows" {
-		output += ".exe"
+		outputPath += ".exe"
 	}
 
 	// Compile the C/C++ sources with linker flags
 	fmt.Println()
 	fmt.Println("Compiling project...")
-	if err := CompileC(sourceFiles, output, flags); err != nil {
+	if err := CompileC(sourceFiles, outputPath, flags); err != nil {
 		return err
 	}
 
 	fmt.Println()
 	fmt.Println("Build complete!")
-	fmt.Printf("Binary: %s\n", output)
+	fmt.Printf("Binary: %s\n", outputPath)
 	return nil
 }
 
 // RunProject executes the compiled binary, building it first if necessary
 func RunProject(args []string) error {
-	// Determine the binary path
-	output := "build/project"
+	// Determine the binary path from config or default
+	output := "project"
+
+	// Try to load config to get output name
+	if _, err := os.Stat("catalyst.yml"); err == nil {
+		cfg, err := config.LoadConfig("catalyst.yml")
+		if err == nil {
+			if cfg.Output != "" {
+				output = cfg.Output
+			} else if cfg.ProjectName != "" {
+				output = cfg.ProjectName
+			}
+		}
+	}
+
+	outputPath := filepath.Join("build", output)
 	if runtime.GOOS == "windows" {
-		output += ".exe"
+		outputPath += ".exe"
 	}
 
 	// Build the project first if binary doesn't exist or sources are provided
@@ -144,7 +174,7 @@ func RunProject(args []string) error {
 		}
 	} else {
 		// Check if binary exists
-		if _, err := os.Stat(output); os.IsNotExist(err) {
+		if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 			// Try to build from catalyst.yml
 			fmt.Println("Binary not found, building from catalyst.yml...")
 			if err := BuildProject([]string{}); err != nil {
@@ -159,7 +189,7 @@ func RunProject(args []string) error {
 	fmt.Println("==============================================")
 	fmt.Println()
 
-	cmd := exec.Command("./" + output)
+	cmd := exec.Command("./" + outputPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
