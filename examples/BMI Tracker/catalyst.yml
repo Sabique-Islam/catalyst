@@ -1,5 +1,5 @@
 project_name: "bmi-tracker"
-description: "BMI Calculator with ncurses UI and SQLite storage"
+description: "BMI Calculator with ncurses UI and SQLite storage (Linux/macOS only)"
 sources:
   - "program.c"
 output: "bmi-tracker"
@@ -14,17 +14,17 @@ dependencies:
     - "sqlite"
     - "ncurses"
   windows:
-    - "msys2"  # Use MSYS2 environment
-    # IMPORTANT: ncurses has limited support on Windows
-    # This example is designed for Linux/macOS
-    # For Windows, install PDCurses instead:
-    # pacman -S mingw-w64-ucrt-x86_64-pdcurses mingw-w64-ucrt-x86_64-sqlite3
-    # And modify the code to use PDCurses API
+    - "msys2"
+    - "sqlite3"
+    # NOTE: This example uses ncurses which is not fully supported on Windows
+    # ncurses has limited Windows compatibility via MSYS2
+    # For Windows users, consider using a simple console I/O instead
+    # or run this in WSL (Windows Subsystem for Linux) for full ncurses support
 
 flags:
   - -lsqlite3
-  - -lncurses  # On Windows, change to -lpdcurses if using PDCurses
+  - -lncurses
 
 includes:
-  - "ncurses.h"  # On Windows with PDCurses, use "curses.h"
+  - "ncurses.h"
   - "sqlite3.h"

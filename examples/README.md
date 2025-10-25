@@ -18,6 +18,10 @@ This directory contains example projects demonstrating Catalyst's cross-platform
 - Ensure you have **winget** (Windows Package Manager) installed - it comes with Windows 11 or via the Microsoft Store on Windows 10
 - Run any example's build command, and Catalyst will handle the rest!
 
+### Windows Compatibility Notes:
+- ✅ **arc**, **menu**, **Research Assistant**: Fully working on Windows
+- ⚠️ **BMI Tracker**: Uses ncurses which has limited Windows support. Best experienced on Linux/macOS or WSL.
+
 ### Example Output:
 ```
 Installing dependencies for windows: [msys2 sqlite3]
