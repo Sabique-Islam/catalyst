@@ -8,12 +8,13 @@ import (
 var buildCmd = &cobra.Command{
 	Use:   "build",
 	Short: "Install dependencies and compile C/C++ sources",
-	Long: `Usage:
-  mycli build <source files> [flags]
+	Long: `Reads catalyst.yml and compiles the C/C++ project.
 
-Example:
-  mycli build src/main.c src/utils.c -O2 -Wall`,
-	Args: cobra.MinimumNArgs(1), // require at least one source file
+If no catalyst.yml exists, you can pass source files manually.
+
+Examples:
+  catalyst build                        # Build from catalyst.yml
+  catalyst build src/main.c src/utils.c # Build specific files`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return compile.BuildProject(args)
 	},
