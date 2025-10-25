@@ -108,3 +108,42 @@ func installDependencies() error {
 	fmt.Println("✅ Dependencies installed")
 	return nil
 }
+
+// RunProject executes the compiled binary, building it first if necessary
+func RunProject(args []string) error {
+	// 1️⃣ Build the project first if binary doesn't exist or sources are newer
+	if len(args) > 0 {
+		if err := BuildProject(args); err != nil {
+			return err
+		}
+	} else {
+		// Try to find a default binary to run
+		output := "bin/project"
+		if runtime.GOOS == "windows" {
+			output += ".exe"
+		}
+
+		if _, err := os.Stat(output); os.IsNotExist(err) {
+			return fmt.Errorf("no binary found at %s. Please build the project first with 'catalyst build <source files>'", output)
+		}
+	}
+
+	// 2️⃣ Determine the binary path
+	output := "bin/project"
+	if runtime.GOOS == "windows" {
+		output += ".exe"
+	}
+
+	// 3️⃣ Execute the binary
+	fmt.Printf("Running: %s\n", output)
+	cmd := exec.Command("./" + output)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("execution failed: %w", err)
+	}
+
+	return nil
+}
