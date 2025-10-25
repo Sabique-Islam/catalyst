@@ -1,18 +1,10 @@
 project_name: arc
 sources:
-  - src/main.c
+    - src/main.c
 output: arc
-flags:
-  - -Wall
-  - -Wextra
-  - -O2
 dependencies:
-  darwin:
-    - sqlite
-  linux:
-    - sqlite3
-  windows:
-    - sqlite3
+    macos:
+        - sqlite
 includes:
-  - stdio.h
-  - sqlite3.h
+    - stdio.h
+    - sqlite3.h
