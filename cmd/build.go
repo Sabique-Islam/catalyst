@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/Sabique-Islam/catalyst/internal/config"
-	"github.com/Sabique-Islam/catalyst/internal/installer"
+	"github.com/Sabique-Islam/catalyst/internal/build"
 	"github.com/spf13/cobra"
 )
 
