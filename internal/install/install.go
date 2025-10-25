@@ -242,16 +242,11 @@ func isLibraryPackage(pkg string) bool {
 	// Check direct matches
 	for _, lib := range knownLibraries {
 		if pkgLower == lib {
-	// Skip system libraries that are always available
-	systemLibs := []string{"m", "pthread", "dl", "rt", "c"}
-	for _, sysLib := range systemLibs {
-		if pkg == sysLib {
 			return true
 		}
 	}
 
-	// Check common library naming patterns first
-	pkgLower := strings.ToLower(pkg)
+	// Check common library naming patterns
 	libraryPatterns := []string{
 		"lib", "-dev", ".lib", "-devel",
 	}
@@ -259,130 +254,6 @@ func isLibraryPackage(pkg string) bool {
 	for _, pattern := range libraryPatterns {
 		if strings.Contains(pkgLower, pattern) {
 			return true
-		}
-	}
-
-	// Dynamically check if package provides library files
-	return hasLibraryFiles(pkg)
-}
-
-// hasLibraryFiles checks if a package provides library files by querying the package manager
-func hasLibraryFiles(pkg string) bool {
-	pkgManager := getPackageManager()
-
-	switch pkgManager {
-	case "pacman":
-		return checkArchLibraryFiles(pkg)
-	case "apt":
-		return checkDebianLibraryFiles(pkg)
-	case "dnf", "yum":
-		return checkRpmLibraryFiles(pkg)
-	case "brew":
-		return checkBrewLibraryFiles(pkg)
-	default:
-		// Fallback to pattern matching if we can't query the package manager
-		return isLikelyLibrary(pkg)
-	}
-}
-
-// checkArchLibraryFiles checks if an Arch package provides library files
-func checkArchLibraryFiles(pkg string) bool {
-	// Map to Arch package name first
-	archPkg := mapToArchPackage(pkg)
-
-	// Query package files and check for .so or .a files
-	cmd := exec.Command("pacman", "-Ql", archPkg)
-	output, err := cmd.Output()
-	if err != nil {
-		// Package might not be installed, try to get file list from package database
-		cmd = exec.Command("pacman", "-Fl", archPkg)
-		output, err = cmd.Output()
-		if err != nil {
-			return isLikelyLibrary(pkg)
-		}
-	}
-
-	files := string(output)
-	return strings.Contains(files, ".so") ||
-		strings.Contains(files, ".a") ||
-		strings.Contains(files, "/lib/") ||
-		strings.Contains(files, "/usr/lib/")
-}
-
-// checkDebianLibraryFiles checks if a Debian/Ubuntu package provides library files
-func checkDebianLibraryFiles(pkg string) bool {
-	cmd := exec.Command("dpkg", "-L", pkg)
-	output, err := cmd.Output()
-	if err != nil {
-		// Try apt-file if package not installed
-		cmd = exec.Command("apt-file", "list", pkg)
-		output, err = cmd.Output()
-		if err != nil {
-			return isLikelyLibrary(pkg)
-		}
-	}
-
-	files := string(output)
-	return strings.Contains(files, ".so") ||
-		strings.Contains(files, ".a") ||
-		strings.Contains(files, "/lib/")
-}
-
-// checkRpmLibraryFiles checks if an RPM package provides library files
-func checkRpmLibraryFiles(pkg string) bool {
-	cmd := exec.Command("rpm", "-ql", pkg)
-	output, err := cmd.Output()
-	if err != nil {
-		return isLikelyLibrary(pkg)
-	}
-
-	files := string(output)
-	return strings.Contains(files, ".so") ||
-		strings.Contains(files, ".a") ||
-		strings.Contains(files, "/lib/")
-}
-
-// checkBrewLibraryFiles checks if a Homebrew package provides library files
-func checkBrewLibraryFiles(pkg string) bool {
-	cmd := exec.Command("brew", "list", pkg)
-	output, err := cmd.Output()
-	if err != nil {
-		return isLikelyLibrary(pkg)
-	}
-
-	files := string(output)
-	return strings.Contains(files, ".dylib") ||
-		strings.Contains(files, ".a") ||
-		strings.Contains(files, "/lib/")
-}
-
-// isLikelyLibrary is a fallback function that uses heuristics to determine if a package is likely a library
-func isLikelyLibrary(pkg string) bool {
-	pkgLower := strings.ToLower(pkg)
-
-	// Common library indicators
-	libraryIndicators := []string{
-		"lib", "sdk", "dev", "devel", "-dev",
-		"openssl", "ssl", "crypto", "curl", "json", "jansson",
-		"sqlite", "mysql", "postgres", "xml", "yaml",
-		"boost", "qt", "gtk", "glib",
-	}
-
-	for _, indicator := range libraryIndicators {
-		if strings.Contains(pkgLower, indicator) {
-			return true
-		}
-	}
-
-	// Check if it's a common development tool (not a library)
-	devTools := []string{
-		"gcc", "clang", "make", "cmake", "ninja", "git", "vim", "emacs",
-		"base-devel", "build-essential", "autotools",
-	}
-
-	for _, tool := range devTools {
-		if pkgLower == tool {
-			return false
 		}
 	}
 
@@ -401,7 +272,6 @@ func extractLibraryName(pkg string) string {
 		"libcurl4-openssl-dev": "curl",
 		"libjansson-dev":       "jansson",
 		"libsqlite3-dev":       "sqlite3",
-		"sqlite":               "sqlite3",
 		"sqlite3":              "sqlite3",
 		"pthread":              "pthread",
 		"m":                    "m",
