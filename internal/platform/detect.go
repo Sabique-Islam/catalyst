@@ -7,11 +7,11 @@ import (
 )
 
 // DetectOS detects the host operating system and returns a normalized string
-// Returns one of: "linux", "macos", or "windows"
+// Returns one of: "linux", "darwin", or "windows"
 func DetectOS() string {
 	switch runtime.GOOS {
 	case "darwin":
-		return "macos"
+		return "darwin"
 	case "linux":
 		return "linux"
 	case "windows":
@@ -40,12 +40,12 @@ func DetectPackageManager(os string) (string, error) {
 		}
 		return "", fmt.Errorf("no supported package manager found on Linux (checked: apt, dnf, pacman)")
 
-	case "macos":
+	case "darwin":
 		// Check for brew (Homebrew)
 		if _, err := exec.LookPath("brew"); err == nil {
 			return "brew", nil
 		}
-		return "", fmt.Errorf("homebrew not found on macOS")
+		return "", fmt.Errorf("homebrew not found on darwin")
 
 	case "windows":
 		// Check for vcpkg
