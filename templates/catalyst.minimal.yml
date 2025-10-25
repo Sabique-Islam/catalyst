@@ -1,0 +1,26 @@
+# Minimal Catalyst Configuration Template
+# Copy this to your project root as 'catalyst.yml'
+
+project_name: "my-project"
+description: "My C/C++ project"
+author: "Your Name"
+
+# Source files to compile
+sources:
+  - "src/main.c"
+
+# Dependencies by OS
+dependencies:
+  linux:
+    - "gcc"
+    - "make"
+  darwin:
+    - "gcc" 
+  windows:
+    - "mingw"
+
+# External files to download (optional)
+resources: []
+
+# Environment variables (optional)
+env: {}

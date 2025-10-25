@@ -1,0 +1,137 @@
+# Catalyst Project Configuration Template
+# This file defines project settings, dependencies, and resources for cross-platform C/C++ development
+
+# Basic Project Information
+project_name: "my-awesome-project"
+description: "A cross-platform C/C++ application built with Catalyst"
+author: "Your Name <your.email@example.com>"
+
+# Source Files
+# List all C/C++ source files that should be compiled
+sources:
+  - "src/main.c"
+  - "src/utils.c"
+  - "src/network.c"
+
+# Dependencies by Operating System
+# Catalyst will automatically install these using the system package manager
+dependencies:
+  # Linux dependencies (installed via apt/dnf/pacman/zypper)
+  linux:
+    - "gcc"
+    - "make"
+    - "libcurl4-openssl-dev"
+    - "libssl-dev"
+    - "libsqlite3-dev"
+    - "pthread"
+    - "m"  # math library
+
+  # macOS dependencies (installed via Homebrew)
+  darwin:
+    - "gcc"
+    - "curl"
+    - "openssl"
+    - "sqlite"
+
+  # Windows dependencies (installed via Chocolatey)
+  windows:
+    - "mingw"
+    - "curl"
+    - "sqlite"
+
+# External Resources
+# Files that should be downloaded before building
+resources:
+  - url: "https://example.com/data/config.json"
+    path: "data/config.json"
+  - url: "https://github.com/user/repo/releases/download/v1.0/library.a"
+    path: "lib/library.a"
+  - url: "https://nlp.stanford.edu/data/glove.6B.50d.txt"
+    path: "embeddings/glove.6B.50d.txt"
+
+# Environment Variables
+# These will be set during build and runtime
+env:
+  DEBUG: "1"
+  LOG_LEVEL: "info"
+  DATA_DIR: "./data"
+
+# Platform-Specific Overrides
+# These override the global settings for specific platforms
+platforms:
+  # Windows-specific configuration
+  windows:
+    dependencies:
+      - "mingw"
+      - "curl"
+      - "sqlite"
+      - "ws2_32.lib"  # Windows sockets library
+    resources:
+      - url: "https://example.com/windows-specific-dll.dll"
+        path: "bin/windows-specific.dll"
+    
+  # Linux-specific configuration  
+  linux:
+    dependencies:
+      - "gcc"
+      - "libcurl4-openssl-dev"
+      - "libsqlite3-dev"
+      - "pthread"
+    
+  # macOS-specific configuration
+  darwin:
+    dependencies:
+      - "gcc"
+      - "curl"
+      - "sqlite"
+
+# Metadata (automatically filled by Catalyst)
+created_at: "2025-10-25T12:00:00Z"
+
+# Usage Examples:
+# 
+# 1. Install dependencies only:
+#    catalyst install
+#
+# 2. Build the project:
+#    catalyst build src/main.c src/utils.c
+#
+# 3. Build and run:
+#    catalyst run src/main.c src/utils.c
+#
+# 4. Clean build artifacts:
+#    catalyst clean
+#
+# 5. Initialize a new project:
+#    catalyst init
+
+# Common Dependency Examples:
+#
+# Development Tools:
+# - gcc, clang, make, cmake
+#
+# Networking Libraries:
+# - libcurl4-openssl-dev (Linux)
+# - curl (macOS/Windows)
+#
+# Database Libraries:
+# - libsqlite3-dev (Linux)
+# - sqlite (macOS/Windows)
+# - libpq-dev (PostgreSQL on Linux)
+#
+# GUI Libraries:
+# - libgtk-3-dev (Linux GTK)
+# - qt5-default (Linux Qt)
+#
+# Multimedia Libraries:
+# - libsdl2-dev (Linux SDL2)
+# - ffmpeg-devel (Linux FFmpeg)
+#
+# Math Libraries:
+# - m (math library - usually system default)
+# - pthread (POSIX threads)
+#
+# Windows-Specific:
+# - ws2_32.lib (Windows Sockets)
+# - user32.lib (Windows User API)
+# - kernel32.lib (Windows Kernel API)

@@ -1,0 +1,29 @@
+# Example Catalyst Configuration
+# This is a working example for a simple Hello World C program
+
+project_name: "hello-world"
+description: "A simple Hello World program in C"
+author: "Catalyst Team"
+
+# Source files
+sources:
+  - "src/main.c"
+
+# Dependencies - minimal for a simple C program
+dependencies:
+  linux:
+    - "gcc"
+  darwin:
+    - "gcc"
+  windows:
+    - "mingw"
+
+# No external resources needed for this simple example
+resources: []
+
+# Simple environment setup
+env:
+  PROJECT_NAME: "hello-world"
+
+# Auto-generated metadata
+created_at: "2025-10-25T12:00:00Z"
