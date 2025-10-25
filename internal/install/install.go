@@ -355,6 +355,7 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 // generateLinkingFlags generates linking flags based on detected dependencies
 func generateLinkingFlags(dependencies []string) []string {
 	var linkFlags []string
+	hasOpenMP := false
 
 	// Common library mappings for linking
 	linkMap := map[string]string{
@@ -411,6 +412,39 @@ func generateLinkingFlags(dependencies []string) []string {
 		"glib-2.0": "glib-2.0",
 	}
 
+	// Check for OpenMP dependencies
+	for _, dep := range dependencies {
+		depLower := strings.ToLower(dep)
+		if depLower == "libomp" || depLower == "omp" || depLower == "openmp" || depLower == "libgomp" {
+			hasOpenMP = true
+			break
+		}
+	}
+
+	// Special handling for libomp on macOS (keg-only package)
+	if hasOpenMP && runtime.GOOS == "darwin" {
+		// Add preprocessor flag for OpenMP
+		linkFlags = append(linkFlags, "-Xpreprocessor", "-fopenmp")
+
+		// Add include and library paths for Homebrew libomp
+		// Check both Apple Silicon (/opt/homebrew) and Intel (/usr/local) paths
+		homebrewPaths := []string{
+			"/opt/homebrew/opt/libomp",
+			"/usr/local/opt/libomp",
+		}
+
+		for _, path := range homebrewPaths {
+			if _, err := os.Stat(path); err == nil {
+				linkFlags = append(linkFlags, "-I"+filepath.Join(path, "include"))
+				linkFlags = append(linkFlags, "-L"+filepath.Join(path, "lib"))
+				break
+			}
+		}
+
+		// Add the linker flag for libomp
+		linkFlags = append(linkFlags, "-lomp")
+	}
+
 	// Always add math library for C projects
 	linkFlags = append(linkFlags, "-lm")
 
@@ -418,6 +452,11 @@ func generateLinkingFlags(dependencies []string) []string {
 	for _, dep := range dependencies {
 		// Normalize dependency name
 		depLower := strings.ToLower(dep)
+
+		// Skip OpenMP on darwin as it's already handled above
+		if runtime.GOOS == "darwin" && (depLower == "libomp" || depLower == "omp" || depLower == "openmp" || depLower == "libgomp") {
+			continue
+		}
 
 		if linkLib, found := linkMap[depLower]; found {
 			linkFlag := "-l" + linkLib

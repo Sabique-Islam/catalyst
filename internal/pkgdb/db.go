@@ -78,6 +78,14 @@ var PackageDB = map[string]map[string]string{
 		"vcpkg":  "pthreads",
 		"choco":  "pthreads",
 	},
+	"omp": {
+		"apt":    "libomp-dev",
+		"dnf":    "libomp-devel",
+		"pacman": "openmp",
+		"brew":   "libomp",
+		"vcpkg":  "llvm",
+		"choco":  "llvm",
+	},
 	"jansson": {
 		"apt":    "libjansson-dev",
 		"dnf":    "jansson-devel",

@@ -25,7 +25,14 @@ func CompileC(sourceFiles []string, output string, flags []string) error {
 
 	// Determine compiler
 	compiler := "gcc" // default for C
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "darwin" {
+		// On macOS, prefer clang over gcc
+		if _, err := exec.LookPath("clang"); err == nil {
+			compiler = "clang"
+		} else if _, err := exec.LookPath("gcc"); err != nil {
+			return fmt.Errorf("no C compiler found (clang or gcc required)")
+		}
+	} else if runtime.GOOS == "windows" {
 		if _, err := exec.LookPath("gcc"); err != nil {
 			return fmt.Errorf("gcc not found in PATH")
 		}

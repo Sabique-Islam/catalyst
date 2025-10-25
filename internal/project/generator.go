@@ -10,6 +10,7 @@ import (
 	core "github.com/Sabique-Islam/catalyst/internal/config"
 	"github.com/Sabique-Islam/catalyst/internal/fetch"
 	"github.com/Sabique-Islam/catalyst/internal/install"
+	"github.com/Sabique-Islam/catalyst/internal/pkgdb"
 	"github.com/Sabique-Islam/catalyst/internal/platform"
 	"github.com/Sabique-Islam/catalyst/internal/tui"
 	"gopkg.in/yaml.v3"
@@ -222,18 +223,29 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 			}
 		}
 
-		// Use simple hardcoded dependencies for all platforms
-		fmt.Println("Setting up dependencies for all platforms...")
+		// Detect OS and package manager
+		osName := platform.DetectOS()
+		pkgManager, err := platform.DetectPackageManager(osName)
+		if err != nil {
+			return fmt.Errorf("could not detect package manager: %w", err)
+		}
 
+		fmt.Printf("Detected OS: %s, Package Manager: %s\n", osName, pkgManager)
+		fmt.Println()
+
+		// Translate abstract dependencies to real package names
+		// Collect dependencies per OS
+		// Initialize with all major platforms
 		allOsDeps := map[string][]string{
-			"darwin":  {"ncurses", "jansson", "sqlite3", "curl", "openmp"},
-			"linux":   {"ncurses", "jansson", "sqlite3", "curl", "openmp"},
-			"windows": {"ncurses", "jansson", "sqlite3", "curl", "openmp"},
+			"darwin":  {},
+			"linux":   {},
+			"windows": {},
 		}
 		includes := []string{}
 
-		// Build includes list
 		for _, abstractName := range abstractDeps {
+			realPkgName, found := pkgdb.Translate(abstractName, pkgManager)
+
 			// Add to includes list - ALL headers (both standard and external)
 			// Check if it already ends with .h to avoid double extension
 			if strings.HasSuffix(abstractName, ".h") {
@@ -241,6 +253,53 @@ func InitializeProjectWithOptions(withAnalysis, installDeps bool) error {
 			} else {
 				includes = append(includes, abstractName+".h")
 			}
+
+			if !found {
+				// Not in package database - likely a project-local header
+				fmt.Printf("%s is a local/project header\n", abstractName)
+				continue
+			}
+
+			// Skip empty package names (standard library headers)
+			if realPkgName == "" {
+				fmt.Printf("%s is a standard library header (no package needed)\n", abstractName)
+				continue
+			}
+
+			// Get package names for all major OSes
+			darwinPkg, _ := pkgdb.Translate(abstractName, "brew")
+			linuxPkg, _ := pkgdb.Translate(abstractName, "apt")
+			windowsPkg, _ := pkgdb.Translate(abstractName, "vcpkg")
+
+			if darwinPkg != "" {
+				allOsDeps["darwin"] = append(allOsDeps["darwin"], darwinPkg)
+			}
+			if linuxPkg != "" {
+				allOsDeps["linux"] = append(allOsDeps["linux"], linuxPkg)
+			}
+			if windowsPkg != "" {
+				allOsDeps["windows"] = append(allOsDeps["windows"], windowsPkg)
+			}
+
+			// Check if already installed on current system
+			if platform.IsPackageInstalled(realPkgName, pkgManager) {
+				fmt.Printf("%s is already installed\n", realPkgName)
+			} else {
+				fmt.Printf("%s needs to be installed\n", realPkgName)
+			}
+		}
+
+		// Remove duplicates from each OS dependency list
+		for os, deps := range allOsDeps {
+			uniqueDeps := make(map[string]bool)
+			uniqueList := []string{}
+			for _, dep := range deps {
+				if !uniqueDeps[dep] {
+					uniqueDeps[dep] = true
+					uniqueList = append(uniqueList, dep)
+				}
+			}
+			allOsDeps[os] = uniqueList
 		}
 
 		// Clear the temporary resolution preference from Author field
