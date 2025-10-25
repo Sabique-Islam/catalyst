@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 
 	compile "github.com/Sabique-Islam/catalyst/internal/compile"
 	"github.com/spf13/cobra"
