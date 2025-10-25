@@ -8,10 +8,23 @@ author: "Your Name <your.email@example.com>"
 
 # Source Files
 # List all C/C++ source files that should be compiled
+# Auto-detected by 'catalyst init' in automate mode
 sources:
   - "src/main.c"
   - "src/utils.c"
   - "src/network.c"
+
+# Output Binary Name (optional - defaults to project_name)
+output: "my-app"
+
+# Compiler Flags (optional)
+# Add custom compiler flags like optimization, warnings, debugging
+flags:
+  - "-Wall"        # Enable all warnings
+  - "-O2"          # Optimization level 2
+  - "-g"           # Include debug symbols
+  # - "-std=c11"   # Use C11 standard
+  # - "-pthread"   # Enable POSIX threads
 
 # Dependencies by Operating System
 # Catalyst will automatically install these using the system package manager
