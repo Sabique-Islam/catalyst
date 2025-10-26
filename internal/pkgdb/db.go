@@ -83,8 +83,8 @@ var PackageDB = map[string]map[string]string{
 		"dnf":    "libomp-devel",
 		"pacman": "openmp",
 		"brew":   "libomp",
-		"vcpkg":  "llvm",
-		"choco":  "llvm",
+		"vcpkg":  "", // OpenMP included with gcc on Windows
+		"choco":  "", // OpenMP included with mingw/gcc
 	},
 	"jansson": {
 		"apt":    "libjansson-dev",
