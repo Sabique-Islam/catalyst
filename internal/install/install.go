@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	config "github.com/Sabique-Islam/catalyst/internal/config"
+	"github.com/Sabique-Islam/catalyst/internal/platform"
 )
 
 //go:embed windows_issues.json
@@ -510,6 +512,18 @@ func installPackage(pkg string) error {
 
 	pkgManager := getPackageManager()
 
+	// Check if package is already installed (Windows only)
+	if osType == "windows" {
+		// For Windows, check if package is already installed before attempting installation
+		winPkg := mapToWindowsPackage(pkg, pkgManager)
+		
+		// Import platform package for IsPackageInstalled check
+		if platform.IsPackageInstalled(winPkg, pkgManager) {
+			fmt.Printf("Package %s is already installed, skipping installation\n", pkg)
+			return nil
+		}
+	}
+
 	switch pkgManager {
 	case "pacman":
 		// Arch Linux package names
@@ -759,6 +773,11 @@ func checkWindowsPackageCompatibility(pkg string) {
 		}
 	}
 
+	// Only print warning if an issue was found
+	if !found {
+		return
+	}
+
 	fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
 	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	if issue.DisplayName != "" {
@@ -868,10 +887,24 @@ func installViaMSYS2Pacman(packages []string) error {
 		return err
 	}
 
-	// Map packages to MSYS2 names
+	// Map packages to MSYS2 names and filter out already installed packages
 	msys2Packages := []string{}
 	for _, pkg := range packages {
-		msys2Packages = append(msys2Packages, mapToMSYS2Package(pkg))
+		msys2Pkg := mapToMSYS2Package(pkg)
+		
+		// Check if package is already installed
+		if isMSYS2PackageInstalled(bashPath, msys2Pkg) {
+			fmt.Printf("MSYS2 package %s is already installed, skipping\n", msys2Pkg)
+			continue
+		}
+		
+		msys2Packages = append(msys2Packages, msys2Pkg)
+	}
+
+	// If all packages are already installed, return early
+	if len(msys2Packages) == 0 {
+		fmt.Println("All MSYS2 packages are already installed")
+		return nil
 	}
 
 	// Build pacman command
@@ -885,6 +918,21 @@ func installViaMSYS2Pacman(packages []string) error {
 	cmd.Stderr = os.Stderr
 
 	return cmd.Run()
+}
+
+// isMSYS2PackageInstalled checks if a package is installed in MSYS2
+func isMSYS2PackageInstalled(bashPath, pkgName string) bool {
+	// Run pacman -Q <pkgName> to check if package is installed
+	cmd := exec.Command(bashPath, "-lc", fmt.Sprintf("pacman -Q %s", pkgName))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = io.Discard
+	
+	// If command succeeds and package name is in output, it's installed
+	if err := cmd.Run(); err == nil {
+		return strings.Contains(out.String(), pkgName)
+	}
+	return false
 }
 
 // runCommand executes a command with arguments
