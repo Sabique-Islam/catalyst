@@ -56,13 +56,13 @@ func detectWindowsCompiler() (*CompilerInfo, error) {
 	for _, compiler := range compilers {
 		if _, err := exec.LookPath(compiler.executable); err == nil {
 			fmt.Printf("Found %s compiler: %s\n", compiler.name, compiler.executable)
-			
+
 			// Add vcpkg flags if available and not MSVC (MSVC uses vcpkg integration differently)
 			flags := compiler.flags
 			if len(vcpkgFlags) > 0 && compiler.name != "MSVC" {
 				flags = append(flags, vcpkgFlags...)
 			}
-			
+
 			return &CompilerInfo{
 				Name:       compiler.name,
 				Executable: compiler.executable,
