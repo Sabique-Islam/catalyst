@@ -1,0 +1,26 @@
+project_name: windows-test
+sources:
+    - hello.c
+output: windows-test
+dependencies:
+    darwin:
+        - ncurses
+        - jansson
+        - sqlite3
+        - curl
+        - openmp
+    linux:
+        - ncurses
+        - jansson
+        - sqlite3
+        - curl
+        - openmp
+    windows:
+        - ncurses
+        - jansson
+        - sqlite3
+        - curl
+        - openmp
+includes:
+    - stdio.h
+created_at: "2025-10-26T09:29:21+05:30"

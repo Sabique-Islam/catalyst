@@ -352,6 +352,41 @@ func InstallDependenciesAndGetLinkerFlags() ([]string, error) {
 	return libFlags, nil
 }
 
+// InstallDependenciesAndGetFlags installs dependencies and returns both compiler and linker flags
+func InstallDependenciesAndGetFlags() ([]string, []string, error) {
+	// Load catalyst.yml
+	cfg, err := config.LoadConfig("catalyst.yml")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Get dependencies for current OS only
+	deps := cfg.GetDependencies() // returns []string
+	if len(deps) == 0 {
+		fmt.Println("No dependencies to install for this OS.")
+		return []string{}, []string{}, nil
+	}
+
+	fmt.Printf("Installing dependencies for %s: %v\n", runtime.GOOS, deps)
+
+	// Install each package
+	for _, pkg := range deps {
+		if err := installPackage(pkg); err != nil {
+			return nil, nil, fmt.Errorf("failed to install package %s: %w", pkg, err)
+		}
+	}
+
+	// Generate compiler and linking flags
+	compilerFlags, linkFlags := generateCompilerAndLinkingFlags(deps)
+	if len(compilerFlags) > 0 {
+		fmt.Printf("Adding compiler flags: %s\n", strings.Join(compilerFlags, " "))
+	}
+	if len(linkFlags) > 0 {
+		fmt.Printf("Adding linking flags: %s\n", strings.Join(linkFlags, " "))
+	}
+	return compilerFlags, linkFlags, nil
+}
+
 // generateLinkingFlags generates linking flags based on detected dependencies
 func generateLinkingFlags(dependencies []string) []string {
 	var linkFlags []string
@@ -436,6 +471,135 @@ func generateLinkingFlags(dependencies []string) []string {
 	}
 
 	return linkFlags
+}
+
+// generateCompilerAndLinkingFlags generates both compiler flags and linking flags based on detected dependencies
+func generateCompilerAndLinkingFlags(dependencies []string) ([]string, []string) {
+	var compilerFlags []string
+	var linkFlags []string
+
+	// Common compiler flags mappings for dependencies that require special compiler flags
+	compilerFlagMap := map[string][]string{
+		// OpenMP (parallel computing)
+		"openmp":  {"-fopenmp"},
+		"libomp":  {"-fopenmp"},
+		"libgomp": {"-fopenmp"},
+		"omp":     {"-fopenmp"},
+
+		// Position Independent Code (often needed for shared libraries)
+		"shared": {"-fPIC"},
+
+		// Fast math optimizations (use with caution)
+		"fastmath": {"-ffast-math"},
+
+		// Security flags
+		"security": {"-fstack-protector-strong", "-D_FORTIFY_SOURCE=2"},
+
+		// Debug information
+		"debug": {"-g", "-O0"},
+
+		// Release optimizations
+		"release": {"-O2", "-DNDEBUG"},
+	}
+
+	// Common library mappings for linking (reused from generateLinkingFlags)
+	linkMap := map[string]string{
+		// Math library
+		"math": "m",
+
+		// Threading
+		"pthread": "pthread",
+
+		// OpenMP (parallel computing)
+		"openmp":  "gomp",
+		"libomp":  "omp",
+		"libgomp": "gomp",
+		"omp":     "omp",
+
+		// Networking
+		"curl":                 "curl",
+		"libcurl":              "curl",
+		"libcurl4-openssl-dev": "curl",
+
+		// JSON libraries
+		"jansson":        "jansson",
+		"libjansson-dev": "jansson",
+		"json-c":         "json-c",
+		"cjson":          "cjson",
+
+		// Terminal libraries
+		"ncurses":        "ncurses",
+		"libncurses-dev": "ncurses",
+		"termcap":        "termcap",
+
+		// Database libraries
+		"sqlite":         "sqlite3",
+		"sqlite3":        "sqlite3",
+		"libsqlite3-dev": "sqlite3",
+
+		// SSL/Crypto
+		"openssl":    "ssl",
+		"libssl-dev": "ssl",
+		"ssl":        "ssl",
+		"crypto":     "crypto",
+
+		// Compression
+		"zlib":       "z",
+		"zlib1g-dev": "z",
+
+		// Linear algebra
+		"blas":     "blas",
+		"lapack":   "lapack",
+		"openblas": "openblas",
+
+		// GLib
+		"glib":     "glib-2.0",
+		"glib-2.0": "glib-2.0",
+	}
+
+	// Always add math library for C projects
+	linkFlags = append(linkFlags, "-lm")
+
+	// Process dependencies and add compiler and linking flags
+	for _, dep := range dependencies {
+		// Normalize dependency name
+		depLower := strings.ToLower(dep)
+
+		// Add compiler flags if needed
+		if compFlags, found := compilerFlagMap[depLower]; found {
+			for _, flag := range compFlags {
+				// Avoid duplicates
+				isDuplicate := false
+				for _, existing := range compilerFlags {
+					if existing == flag {
+						isDuplicate = true
+						break
+					}
+				}
+				if !isDuplicate {
+					compilerFlags = append(compilerFlags, flag)
+				}
+			}
+		}
+
+		// Add linking flags
+		if linkLib, found := linkMap[depLower]; found {
+			linkFlag := "-l" + linkLib
+			// Avoid duplicates
+			isDuplicate := false
+			for _, existing := range linkFlags {
+				if existing == linkFlag {
+					isDuplicate = true
+					break
+				}
+			}
+			if !isDuplicate {
+				linkFlags = append(linkFlags, linkFlag)
+			}
+		}
+	}
+
+	return compilerFlags, linkFlags
 }
 
 func getPackageManager() string {
@@ -635,9 +799,15 @@ func mapToWindowsPackage(pkg string, pkgManager string) string {
 	switch pkgManager {
 	case "choco":
 		pkgMap = map[string]string{
-			"gcc":                  "mingw",
-			"make":                 "make",
-			"build-essential":      "mingw",
+			// Compilers and build tools
+			"gcc":             "mingw",
+			"clang":           "llvm",
+			"make":            "make",
+			"build-essential": "visualstudio2022buildtools",
+			"msvc":            "visualstudio2022buildtools",
+			"cl":              "visualstudio2022buildtools",
+
+			// Common libraries
 			"curl":                 "curl",
 			"libcurl4-openssl-dev": "curl",
 			"libssl-dev":           "openssl",
@@ -650,17 +820,35 @@ func mapToWindowsPackage(pkg string, pkgManager string) string {
 			"sqlite3":              "sqlite",
 			"zlib":                 "zlib",
 			"pkg-config":           "pkgconfiglite",
-			"openmp":               "mingw",
-			"libomp":               "mingw",
-			"libgomp":              "mingw",
-			"libgomp-dev":          "mingw",
+
+			// JSON libraries
+			"jansson":        "jansson",
+			"libjansson-dev": "jansson",
+			"json-c":         "json-c",
+			"cjson":          "cjson",
+
+			// Terminal libraries
+			"ncurses":        "pdcurses",
+			"libncurses-dev": "pdcurses",
+
+			// OpenMP
+			"openmp":      "mingw",
+			"libomp":      "llvm",
+			"libgomp":     "mingw",
+			"libgomp-dev": "mingw",
 		}
 	case "winget":
 		pkgMap = map[string]string{
-			"gcc":                  "MSYS2.MSYS2",
-			"make":                 "GnuWin32.Make",
-			"build-essential":      "MSYS2.MSYS2",
-			"msys2":                "MSYS2.MSYS2",
+			// Compilers and build tools (native Windows options first)
+			"gcc":             "TDM-GCC.TDM-GCC",
+			"clang":           "LLVM.LLVM",
+			"make":            "GnuWin32.Make",
+			"build-essential": "Microsoft.VisualStudio.2022.BuildTools",
+			"msvc":            "Microsoft.VisualStudio.2022.BuildTools",
+			"cl":              "Microsoft.VisualStudio.2022.BuildTools",
+			"msys2":           "MSYS2.MSYS2",
+
+			// Common tools
 			"curl":                 "cURL.cURL",
 			"libcurl4-openssl-dev": "cURL.cURL",
 			"git":                  "Git.Git",
@@ -669,24 +857,55 @@ func mapToWindowsPackage(pkg string, pkgManager string) string {
 			"nodejs":               "OpenJS.NodeJS",
 			"sqlite":               "SQLite.SQLite",
 			"sqlite3":              "SQLite.SQLite",
-			"openmp":               "MSYS2.MSYS2",
-			"libomp":               "MSYS2.MSYS2",
-			"libgomp":              "MSYS2.MSYS2",
-			"libgomp-dev":          "MSYS2.MSYS2",
+
+			// JSON libraries (try native packages first)
+			"jansson":        "vcpkg.vcpkg",
+			"libjansson-dev": "vcpkg.vcpkg",
+			"json-c":         "vcpkg.vcpkg",
+			"cjson":          "vcpkg.vcpkg",
+
+			// Terminal libraries
+			"ncurses":        "vcpkg.vcpkg",
+			"libncurses-dev": "vcpkg.vcpkg",
+
+			// OpenMP (prefer LLVM for native Windows)
+			"openmp":      "LLVM.LLVM",
+			"libomp":      "LLVM.LLVM",
+			"libgomp":     "TDM-GCC.TDM-GCC",
+			"libgomp-dev": "TDM-GCC.TDM-GCC",
 		}
 	case "scoop":
 		pkgMap = map[string]string{
-			"gcc":         "gcc",
-			"make":        "make",
-			"curl":        "curl",
-			"git":         "git",
-			"cmake":       "cmake",
-			"python":      "python",
-			"nodejs":      "nodejs",
-			"sqlite":      "sqlite3",
-			"sqlite3":     "sqlite3",
-			"openmp":      "gcc",
-			"libomp":      "gcc",
+			// Compilers and build tools
+			"gcc":             "gcc",
+			"clang":           "llvm",
+			"make":            "make",
+			"build-essential": "llvm",
+			"msvc":            "", // Not available via scoop
+			"cl":              "", // Not available via scoop
+
+			// Common tools
+			"curl":    "curl",
+			"git":     "git",
+			"cmake":   "cmake",
+			"python":  "python",
+			"nodejs":  "nodejs",
+			"sqlite":  "sqlite3",
+			"sqlite3": "sqlite3",
+
+			// JSON libraries
+			"jansson":        "pkg-config", // Will need manual setup
+			"libjansson-dev": "pkg-config",
+			"json-c":         "pkg-config",
+			"cjson":          "pkg-config",
+
+			// Terminal libraries
+			"ncurses":        "pkg-config", // Will need manual setup
+			"libncurses-dev": "pkg-config",
+
+			// OpenMP
+			"openmp":      "llvm",
+			"libomp":      "llvm",
 			"libgomp":     "gcc",
 			"libgomp-dev": "gcc",
 		}
