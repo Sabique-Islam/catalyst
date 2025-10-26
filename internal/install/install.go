@@ -361,16 +361,14 @@ func generateLinkingFlags(dependencies []string) []string {
 		// Math library
 		"math": "m",
 
-		// Threading
-		"pthread": "pthread",
+	// Threading
+	"pthread": "pthread",
 
-		// OpenMP (parallel computing)
-		"openmp":  "gomp",
-		"libomp":  "omp",
-		"libgomp": "gomp",
-		"omp":     "omp",
-
-		// Networking
+	// OpenMP (parallel computing)
+	"openmp":  "gomp",
+	"libomp":  "omp",
+	"libgomp": "gomp",
+	"omp":     "gomp",  // Windows GCC uses libgomp, not libomp		// Networking
 		"curl":                 "curl",
 		"libcurl":              "curl",
 		"libcurl4-openssl-dev": "curl",
@@ -759,6 +757,11 @@ func checkWindowsPackageCompatibility(pkg string) {
 		}
 	}
 
+	// If no issue found after all attempts, return early
+	if !found || issue == nil {
+		return
+	}
+
 	fmt.Printf("\n⚠️  WARNING: Windows Compatibility Issue Detected\n")
 	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	if issue.DisplayName != "" {
@@ -789,6 +792,11 @@ func shouldUseMSYS2Pacman(pkg string) bool {
 		"libsqlite3-dev",
 		"ncurses",
 		"libncurses-dev",
+		"omp",
+		"openmp",
+		"libomp",
+		"libgomp",
+		"libgomp-dev",
 	}
 
 	pkgLower := strings.ToLower(pkg)
