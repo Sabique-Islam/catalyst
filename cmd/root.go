@@ -44,6 +44,14 @@ func runInteractiveMenu() error {
 		}
 
 		switch choice {
+		case "Smart Init (Auto-detect & generate config)":
+			if err := smartInitCmd.RunE(smartInitCmd, []string{}); err != nil {
+				fmt.Printf("Error: Smart Init failed: %v\n\n", err)
+			}
+		case "Analyze (Show project structure)":
+			if err := analyzeCmd.RunE(analyzeCmd, []string{}); err != nil {
+				fmt.Printf("Error: Analyze failed: %v\n\n", err)
+			}
 		case "Init (Create catalyst.yml)":
 			if err := initCmd.RunE(initCmd, []string{}); err != nil {
 				fmt.Printf("Error: Init failed: %v\n\n", err)

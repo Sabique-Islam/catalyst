@@ -14,6 +14,8 @@ func RunMainMenu() (string, error) {
 	prompt := promptui.Select{
 		Label: "Select an option",
 		Items: []string{
+			"Smart Init (Auto-detect & generate config)",
+			"Analyze (Show project structure)",
 			"Init (Create catalyst.yml)",
 			"Scan (Find dependencies)",
 			"Install (Install dependencies)",
